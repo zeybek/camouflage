@@ -54,6 +54,16 @@
         "command": "camouflage.addToExcludeList",
         "title": "Camouflage: Add to Exclude List",
         "icon": "assets/icon.png"
+      },
+      {
+        "command": "camouflage.setPassword",
+        "title": "Camouflage: Set Protection Password",
+        "icon": "assets/lock.png"
+      },
+      {
+        "command": "camouflage.clearPassword",
+        "title": "Camouflage: Clear Remembered Password",
+        "icon": "assets/unlock.png"
       }
     ],
     "configuration": {
@@ -156,6 +166,30 @@
           "default": [],
           "description": "Keys that should never be hidden",
           "category": "Selective Hiding"
+        },
+        "camouflage.security.passwordProtection": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable password protection for viewing sensitive values",
+          "category": "Security"
+        },
+        "camouflage.security.passwordTimeout": {
+          "type": "number",
+          "default": 300,
+          "description": "Time in seconds before requiring password again (0 for no timeout)",
+          "category": "Security"
+        },
+        "camouflage.security.maxAttempts": {
+          "type": "number",
+          "default": 3,
+          "description": "Maximum number of password attempts before locking (0 for unlimited)",
+          "category": "Security"
+        },
+        "camouflage.security.rememberPassword": {
+          "type": "boolean",
+          "default": true,
+          "description": "Remember password for the current session",
+          "category": "Security"
         }
       }
     },
@@ -182,6 +216,12 @@
         "command": "camouflage.toggleSelective",
         "key": "ctrl+shift+s",
         "mac": "cmd+shift+s",
+        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+      },
+      {
+        "command": "camouflage.setPassword",
+        "key": "ctrl+shift+p",
+        "mac": "cmd+shift+p",
         "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
       }
     ],
@@ -211,6 +251,16 @@
           "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
           "command": "camouflage.addToExcludeList",
           "group": "camouflage@4"
+        },
+        {
+          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
+          "command": "camouflage.setPassword",
+          "group": "camouflage@5"
+        },
+        {
+          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
+          "command": "camouflage.clearPassword",
+          "group": "camouflage@5"
         }
       ],
       "editor/title": [

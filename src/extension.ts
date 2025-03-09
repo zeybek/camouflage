@@ -2,6 +2,8 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { Camouflage } from './core/camouflage';
+import { PasswordManager } from './security/password-manager';
+import * as config from './utils/config';
 
 let camouflage: Camouflage;
 
@@ -18,27 +20,22 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Register commands
   context.subscriptions.push(
-    vscode.commands.registerCommand('camouflage.hide', () => {
-      vscode.workspace.getConfiguration('camouflage').update('enabled', true, true);
-      // Force immediate update after enabling
-      setTimeout(() => camouflage.updateDecorationType(), 0);
+    vscode.commands.registerCommand('camouflage.hide', async () => {
+      await camouflage.hide();
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('camouflage.reveal', () => {
-      vscode.workspace.getConfiguration('camouflage').update('enabled', false, true);
-      // Force immediate update after disabling
-      setTimeout(() => camouflage.updateDecorationType(), 0);
+    vscode.commands.registerCommand('camouflage.reveal', async () => {
+      await camouflage.reveal();
     })
   );
 
   // Toggle selective hiding
   context.subscriptions.push(
-    vscode.commands.registerCommand('camouflage.toggleSelective', () => {
-      const config = vscode.workspace.getConfiguration('camouflage');
-      const isEnabled = config.get('selective.enabled', false);
-      config.update('selective.enabled', !isEnabled, true);
+    vscode.commands.registerCommand('camouflage.toggleSelective', async () => {
+      const isEnabled = config.isSelectiveHidingEnabled();
+      await config.getConfig().update('selective.enabled', !isEnabled, true);
       vscode.window.showInformationMessage(
         `Selective hiding ${!isEnabled ? 'enabled' : 'disabled'}`
       );
@@ -66,8 +63,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       const key = match[1];
-      const config = vscode.workspace.getConfiguration('camouflage');
-      const excludeKeys = config.get('selective.excludeKeys', []) as string[];
+      const excludeKeys = config.getExcludeKeys();
 
       // Ask user if they want to add an exact match or a pattern
       const options = [
@@ -133,7 +129,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       // Update configuration
-      config.update('selective.excludeKeys', excludeKeys, true);
+      await config.getConfig().update('selective.excludeKeys', excludeKeys, true);
       setTimeout(() => camouflage.updateDecorationType(), 0);
     })
   );
@@ -158,8 +154,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       const key = match[1];
-      const config = vscode.workspace.getConfiguration('camouflage');
-      const excludeKeys = config.get('selective.excludeKeys', []) as string[];
+      const excludeKeys = config.getExcludeKeys();
 
       // Ask user if they want to add an exact match or a pattern
       const options = [
@@ -191,7 +186,7 @@ export function activate(context: vscode.ExtensionContext): void {
       // Add to exclude list if not already there
       if (!excludeKeys.includes(patternToAdd)) {
         excludeKeys.push(patternToAdd);
-        config.update('selective.excludeKeys', excludeKeys, true);
+        await config.getConfig().update('selective.excludeKeys', excludeKeys, true);
         vscode.window.showInformationMessage(`Added pattern "${patternToAdd}" to exclude list`);
         setTimeout(() => camouflage.updateDecorationType(), 0);
       } else {
@@ -201,6 +196,52 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     })
   );
+
+  // Set password protection
+  context.subscriptions.push(
+    vscode.commands.registerCommand('camouflage.setPassword', async () => {
+      const passwordManager = PasswordManager.getInstance();
+      const success = await passwordManager.setPassword();
+
+      if (success) {
+        // Enable password protection in settings
+        await config.enablePasswordProtection();
+        camouflage.updateStatusBarItem();
+      }
+    })
+  );
+
+  // Clear remembered password
+  context.subscriptions.push(
+    vscode.commands.registerCommand('camouflage.clearPassword', () => {
+      const passwordManager = PasswordManager.getInstance();
+      passwordManager.clearPassword();
+      vscode.window.showInformationMessage('Password cleared from memory');
+    })
+  );
+
+  // Check if password protection is enabled but no password is set
+  const passwordProtectionEnabled = config.isPasswordProtectionEnabled();
+
+  if (passwordProtectionEnabled) {
+    const passwordManager = PasswordManager.getInstance();
+    if (!passwordManager.isPasswordProtectionEnabled()) {
+      // Prompt user to set a password
+      vscode.window
+        .showInformationMessage(
+          'Password protection is enabled but no password is set',
+          'Set Password',
+          'Disable Protection'
+        )
+        .then(async (selection) => {
+          if (selection === 'Set Password') {
+            await passwordManager.setPassword();
+          } else if (selection === 'Disable Protection') {
+            await config.disablePasswordProtection();
+          }
+        });
+    }
+  }
 }
 
 /**

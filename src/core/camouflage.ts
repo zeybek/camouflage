@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Debounce, HandleErrors, Log, MeasurePerformance, ValidateConfig } from '../decorators';
 import { generateHiddenText } from '../lib/text-generator';
+import { PasswordManager } from '../security/password-manager';
 import * as config from '../utils/config';
 import { ENV_VAR_REGEX, isEnvFile } from '../utils/file';
 import { HiddenTextStyle } from './types';
@@ -23,22 +24,26 @@ export class Camouflage {
   /**
    * Update status bar item
    */
-  private updateStatusBarItem(): void {
+  @HandleErrors()
+  public updateStatusBarItem(): void {
     const isEnabled = config.isEnabled();
     const isSelectiveEnabled = config.isSelectiveHidingEnabled();
+    const passwordManager = PasswordManager.getInstance();
+    const isPasswordProtected = passwordManager.isPasswordProtectionEnabled();
+    const passwordIcon = isPasswordProtected ? ' 🔒' : '';
 
     // Update status bar text based on both enabled state and selective mode
     if (isEnabled) {
       if (isSelectiveEnabled) {
-        this.statusBarItem.text = '$(eye-closed) Camouflage: Selective';
+        this.statusBarItem.text = `$(eye-closed) Camouflage: Selective${passwordIcon}`;
         this.statusBarItem.tooltip = 'Camouflage is ON (Selective Mode)\nClick to disable';
       } else {
-        this.statusBarItem.text = '$(eye-closed) Camouflage: On';
+        this.statusBarItem.text = `$(eye-closed) Camouflage: On${passwordIcon}`;
         this.statusBarItem.tooltip = 'Camouflage is ON (All values hidden)\nClick to disable';
       }
       this.statusBarItem.command = 'camouflage.reveal';
     } else {
-      this.statusBarItem.text = '$(eye) Camouflage: Off';
+      this.statusBarItem.text = `$(eye) Camouflage: Off${passwordIcon}`;
       this.statusBarItem.tooltip = 'Camouflage is OFF\nClick to enable';
       this.statusBarItem.command = 'camouflage.hide';
     }
@@ -141,6 +146,49 @@ export class Camouflage {
   }
 
   /**
+   * Hide sensitive values
+   */
+  @HandleErrors()
+  @Log('Hiding sensitive values')
+  public async hide(): Promise<void> {
+    await config.enable();
+    this.updateStatusBarItem();
+    this.updateDecorationType();
+  }
+
+  /**
+   * Reveal sensitive values
+   */
+  @HandleErrors()
+  @Log('Revealing sensitive values')
+  public async reveal(): Promise<void> {
+    // Check password if protection is enabled
+    const passwordManager = PasswordManager.getInstance();
+    if (passwordManager.isPasswordProtectionEnabled()) {
+      const isVerified = await passwordManager.verifyPassword();
+      if (!isVerified) {
+        vscode.window.showErrorMessage('Password verification failed. Values will remain hidden.');
+        return; // Password verification failed
+      }
+    }
+
+    await config.disable();
+    this.updateStatusBarItem();
+    this.updateDecorationType();
+
+    // If timeout is enabled, schedule auto-hide
+    const timeout = config.getPasswordTimeout();
+    if (timeout > 0 && passwordManager.isPasswordProtectionEnabled()) {
+      vscode.window.showInformationMessage(
+        `Values will be automatically hidden after ${timeout} seconds`
+      );
+      setTimeout(() => {
+        this.hide();
+      }, timeout * 1000);
+    }
+  }
+
+  /**
    * Update decorations in the editor
    */
   @MeasurePerformance()
@@ -163,9 +211,7 @@ export class Camouflage {
     }
 
     // Prepare variables before processing the text
-    const style = vscode.workspace
-      .getConfiguration('camouflage')
-      .get('appearance.style', 'text') as HiddenTextStyle;
+    const style = config.getConfig().get('appearance.style', 'text') as HiddenTextStyle;
     const textColor = config.getTextColor();
     const backgroundColor = config.getBackgroundColor();
     const showPreview = config.shouldShowPreview();
