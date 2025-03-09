@@ -22,11 +22,15 @@
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ],
-    "@semantic-release/github",
     [
-      "@semantic-release/exec",
+      "@semantic-release/github",
       {
-        "successCmd": "echo \"new_release_published=true\" >> $GITHUB_OUTPUT && echo \"new_release_version=${nextRelease.version}\" >> $GITHUB_OUTPUT"
+        "assets": [
+          {
+            "path": "*.vsix",
+            "label": "Camouflage v${nextRelease.version} - VS Code Extension"
+          }
+        ]
       }
     ]
   ]

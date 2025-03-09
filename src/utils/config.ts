@@ -13,39 +13,35 @@ export function getConfig() {
  * Check if the extension is enabled
  */
 export function isEnabled(): boolean {
-  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('enabled', true);
+  return getConfig().get('enabled', true);
 }
 
 /**
  * Check if auto hide is enabled
  */
 export function isAutoHideEnabled(): boolean {
-  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('autoHide', true);
+  return getConfig().get('autoHide', true);
 }
 
 /**
- * Get the file patterns
+ * Get file patterns to apply hiding
  */
 export function getFilePatterns(): string[] {
-  return vscode.workspace
-    .getConfiguration(CONFIG_SECTION)
-    .get('files.patterns', ['.env*', '*.env']);
+  return getConfig().get('files.patterns', ['.env*', '*.env']) || [];
 }
 
 /**
- * Get the text color for hidden values
+ * Get text color for hidden values
  */
 export function getTextColor(): string {
-  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('appearance.textColor', '#666666');
+  return getConfig().get('appearance.textColor', '#FFFFFF');
 }
 
 /**
- * Get the background color for hidden values
+ * Get background color for hidden values
  */
 export function getBackgroundColor(): string {
-  return vscode.workspace
-    .getConfiguration(CONFIG_SECTION)
-    .get('appearance.backgroundColor', 'transparent');
+  return getConfig().get('appearance.backgroundColor', '#2F7FE5');
 }
 
 /**
@@ -63,28 +59,25 @@ export async function disable(): Promise<void> {
 }
 
 /**
- * Check if the preview should be shown
+ * Check if preview on hover is enabled
  */
 export function shouldShowPreview(): boolean {
-  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('hover.showPreview', true);
+  return getConfig().get('hover.showPreview', false);
 }
 
 /**
- * Get the hover message
+ * Get hover message
  */
 export function getHoverMessage(): string {
-  return vscode.workspace
-    .getConfiguration(CONFIG_SECTION)
-    .get('hover.message', 'Hidden by Camouflage');
+  return getConfig().get('hover.message', 'Environment value hidden by Camouflage extension');
 }
 
 /**
- * Get key patterns that should always be hidden
+ * Get key patterns to match for selective hiding
  */
 export function getKeyPatterns(): string[] {
-  return vscode.workspace
-    .getConfiguration(CONFIG_SECTION)
-    .get('selective.keyPatterns', [
+  return (
+    getConfig().get('selective.keyPatterns', [
       '*KEY*',
       '*TOKEN*',
       '*SECRET*',
@@ -93,19 +86,62 @@ export function getKeyPatterns(): string[] {
       '*DB*',
       '*DATABASE*',
       '*PORT*',
-    ]);
+    ]) || []
+  );
 }
 
 /**
- * Get keys that should never be hidden
+ * Get keys to exclude from hiding
  */
 export function getExcludeKeys(): string[] {
-  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('selective.excludeKeys', []);
+  return getConfig().get('selective.excludeKeys', []) || [];
 }
 
 /**
  * Check if selective hiding is enabled
  */
 export function isSelectiveHidingEnabled(): boolean {
-  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('selective.enabled', false);
+  return getConfig().get('selective.enabled', false);
+}
+
+/**
+ * Check if password protection is enabled
+ */
+export function isPasswordProtectionEnabled(): boolean {
+  return getConfig().get('security.passwordProtection', false);
+}
+
+/**
+ * Get password timeout in seconds
+ */
+export function getPasswordTimeout(): number {
+  return getConfig().get('security.passwordTimeout', 300);
+}
+
+/**
+ * Get max password attempts
+ */
+export function getMaxAttempts(): number {
+  return getConfig().get('security.maxAttempts', 3);
+}
+
+/**
+ * Check if remember password is enabled
+ */
+export function isRememberPasswordEnabled(): boolean {
+  return getConfig().get('security.rememberPassword', true);
+}
+
+/**
+ * Enable password protection
+ */
+export async function enablePasswordProtection(): Promise<void> {
+  await getConfig().update('security.passwordProtection', true, true);
+}
+
+/**
+ * Disable password protection
+ */
+export async function disablePasswordProtection(): Promise<void> {
+  await getConfig().update('security.passwordProtection', false, true);
 }

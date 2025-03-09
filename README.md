@@ -26,6 +26,7 @@ Camouflage is a VS Code extension that helps protect sensitive environment varia
 - ⌨️ **Keyboard Shortcuts**: Quickly toggle visibility with customizable keyboard shortcuts
 - 🖱️ **Enhanced Context Menu**: Right-click on any value to toggle its visibility
 - 📊 **Status Bar Indicators**: See the current state and mode at a glance
+- 🔐 **Password Protection**: Add an extra layer of security with password protection for viewing sensitive values
 
 ## Installation
 
@@ -65,6 +66,8 @@ Right-click on any line in your `.env` file to access these options:
 - **Toggle Selected Value**: Toggle visibility for the current value only
 - **Toggle Selective Hiding**: Switch between hiding all values or only selected ones
 - **Add to Exclude List**: Add the current key to the exclude list
+- **Set Protection Password**: Configure password protection for sensitive values
+- **Clear Remembered Password**: Clear the remembered password for the current session
 
 ### Keyboard Shortcuts
 
@@ -72,6 +75,7 @@ Right-click on any line in your `.env` file to access these options:
 - `Ctrl+Shift+R` / `Cmd+Shift+R`: Reveal all values
 - `Ctrl+Shift+T` / `Cmd+Shift+T`: Toggle the value under cursor
 - `Ctrl+Shift+S` / `Cmd+Shift+S`: Toggle selective hiding mode
+- `Ctrl+Shift+P` / `Cmd+Shift+P`: Set protection password
 
 ## Configuration
 
@@ -108,6 +112,13 @@ Access settings through:
 
 - `camouflage.hover.showPreview`: Show value preview on hover
 - `camouflage.hover.message`: Custom message to show on hover
+
+#### Security
+
+- `camouflage.security.passwordProtection`: Enable password protection for viewing sensitive values
+- `camouflage.security.passwordTimeout`: Time in seconds before requiring password again (0 for no timeout)
+- `camouflage.security.maxAttempts`: Maximum number of password attempts before locking (0 for unlimited)
+- `camouflage.security.rememberPassword`: Remember password for the current session
 
 ## Examples
 
@@ -215,6 +226,27 @@ You can also add keys to the exclude list without removing existing patterns:
 3. Choose the pattern type (exact match, starts with, ends with, or contains)
 
 This gives you more control over which values are hidden or visible based on your specific needs.
+
+### Password Protection
+
+For an additional layer of security, you can enable password protection to prevent unauthorized viewing of sensitive values:
+
+1. Enable password protection in settings: `camouflage.security.passwordProtection: true`
+2. Set a password by right-clicking in an `.env` file and selecting "Set Protection Password" or using the keyboard shortcut `Ctrl+Shift+P` / `Cmd+Shift+P`
+3. When you try to reveal hidden values, you'll be prompted to enter the password
+
+#### Password Protection Features
+
+- **Session Timeout**: Configure how long the password is remembered before requiring re-entry (`camouflage.security.passwordTimeout`)
+- **Maximum Attempts**: Set a limit on incorrect password attempts to prevent brute force attacks (`camouflage.security.maxAttempts`)
+- **Remember Password**: Choose whether to remember the password for the current session (`camouflage.security.rememberPassword`)
+- **Clear Password**: Manually clear the remembered password via the context menu
+
+This feature is perfect for:
+
+- Shared workstations where multiple people might have access to your VS Code
+- Live coding sessions or presentations where you need to temporarily reveal sensitive values
+- Adding an extra layer of protection against accidental exposure of sensitive information
 
 ## Security
 
