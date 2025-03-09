@@ -1,4 +1,3 @@
-import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import * as vscode from 'vscode';
 import * as config from '../utils/config';
@@ -95,7 +94,9 @@ export class PasswordManager {
     }
 
     // Verify password
-    const isValid = bcrypt.compareSync(inputPassword, this.hashedPassword);
+    const isValid = this.hashedPassword
+      ? bcrypt.compareSync(inputPassword, this.hashedPassword)
+      : false;
 
     if (isValid) {
       // Reset attempts and update last verified time

@@ -16,25 +16,24 @@ jest.mock(
   { virtual: true }
 );
 
-// Mock crypto
-jest.mock(
-  'crypto',
-  () => ({
-    createHash: jest.fn().mockImplementation(() => ({
-      update: jest.fn().mockImplementation((password) => ({
-        digest: jest.fn().mockImplementation(() => {
-          // Return consistent hash values based on input
-          if (password === 'password123') {
-            return 'hashed-password-123';
-          } else {
-            return 'wrong-hashed-password';
-          }
-        }),
-      })),
-    })),
+// Mock bcrypt
+jest.mock('bcrypt', () => ({
+  hashSync: jest.fn().mockImplementation((password) => {
+    // Return consistent hash values based on input
+    if (password === 'password123') {
+      return 'hashed-password-123';
+    } else {
+      return 'wrong-hashed-password';
+    }
   }),
-  { virtual: true }
-);
+  compareSync: jest.fn().mockImplementation((password, hash) => {
+    // Simple comparison for testing
+    if (password === 'password123' && hash === 'hashed-password-123') {
+      return true;
+    }
+    return false;
+  }),
+}));
 
 // Mock config
 jest.mock('../../utils/config', () => ({
@@ -322,20 +321,7 @@ describe('PasswordManager', () => {
       // Verify we can still enter the correct password
       jest.clearAllMocks();
 
-      // Reset crypto mock to return correct hash for correct password
-      jest.resetModules();
-      jest.mock(
-        'crypto',
-        () => ({
-          createHash: jest.fn().mockImplementation(() => ({
-            update: jest.fn().mockImplementation(() => ({
-              digest: jest.fn().mockReturnValue('hashed-password-123'),
-            })),
-          })),
-        }),
-        { virtual: true }
-      );
-
+      // Mock the password input for verification with correct password
       (vscode.window.showInputBox as jest.Mock).mockResolvedValueOnce('password123' as never);
 
       const result3 = await passwordManager.verifyPassword();
