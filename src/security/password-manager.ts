@@ -1,4 +1,5 @@
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 import * as vscode from 'vscode';
 import * as config from '../utils/config';
 
@@ -94,8 +95,7 @@ export class PasswordManager {
     }
 
     // Verify password
-    const inputHash = this.hashPassword(inputPassword);
-    const isValid = this.hashedPassword === inputHash;
+    const isValid = bcrypt.compareSync(inputPassword, this.hashedPassword);
 
     if (isValid) {
       // Reset attempts and update last verified time
@@ -150,10 +150,11 @@ export class PasswordManager {
   }
 
   /**
-   * Hash password using SHA-256
+   * Hash password using bcrypt
    */
   private hashPassword(password: string): string {
-    return crypto.createHash('sha256').update(password).digest('hex');
+    const saltRounds = 10;
+    return bcrypt.hashSync(password, saltRounds);
   }
 
   /**

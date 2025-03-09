@@ -314,5 +314,8 @@
     "ts-jest": "^29.2.6",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.0"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1"
   }
 }
