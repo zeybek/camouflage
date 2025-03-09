@@ -1,0 +1,28 @@
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# they will be requested for review when someone opens a pull request.
+* @zeybek
+
+# Order is important; the last matching pattern takes the most
+# precedence.
+
+# Core files
+/src/core/ @zeybek
+/src/extension.ts @zeybek
+
+# Configuration files
+*.json @zeybek
+*.yml @zeybek
+*.yaml @zeybek
+
+# Documentation
+*.md @zeybek
+
+# Test files
+/src/**/*.test.ts @zeybek
+
+# Documentation changes
+docs/ @zeybek
+
+# GitHub specific files
+.github/ @zeybek 

@@ -1,0 +1,268 @@
+{
+  "name": "camouflage",
+  "displayName": "Camouflage",
+  "description": "Hide sensitive environment values in .env files",
+  "version": "0.0.0",
+  "publisher": "zeybek",
+  "author": {
+    "name": "Ahmet Zeybek",
+    "email": "me@zeybek.dev",
+    "url": "https://zeybek.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zeybek/camouflage.git"
+  },
+  "icon": "assets/logo.png",
+  "engines": {
+    "vscode": "^1.96.0",
+    "node": ">=22.0.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:dotenv",
+    "onLanguage:properties",
+    "onLanguage:plaintext",
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "camouflage.hide",
+        "title": "Camouflage: Hide Environment Variables",
+        "icon": "assets/icon.png"
+      },
+      {
+        "command": "camouflage.reveal",
+        "title": "Camouflage: Reveal Environment Variables",
+        "icon": "assets/icon.png"
+      },
+      {
+        "command": "camouflage.toggleValue",
+        "title": "Camouflage: Toggle Selected Value",
+        "icon": "assets/icon.png"
+      },
+      {
+        "command": "camouflage.toggleSelective",
+        "title": "Camouflage: Toggle Selective Hiding",
+        "icon": "assets/icon.png"
+      },
+      {
+        "command": "camouflage.addToExcludeList",
+        "title": "Camouflage: Add to Exclude List",
+        "icon": "assets/icon.png"
+      }
+    ],
+    "configuration": {
+      "title": "Camouflage",
+      "properties": {
+        "camouflage.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable hiding of environment values",
+          "category": "General"
+        },
+        "camouflage.autoHide": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically hide values when opening .env files",
+          "category": "General"
+        },
+        "camouflage.files.patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            ".env*",
+            "*.env"
+          ],
+          "description": "File patterns to apply hiding (e.g., .env, .env.local, etc.)",
+          "category": "Files"
+        },
+        "camouflage.appearance.hiddenText": {
+          "type": "string",
+          "default": "************************",
+          "description": "Text to display instead of the actual environment values",
+          "category": "Appearance"
+        },
+        "camouflage.appearance.textColor": {
+          "type": "string",
+          "default": "#FFFFFF",
+          "description": "Color of the hidden text (CSS color format)",
+          "category": "Appearance"
+        },
+        "camouflage.appearance.backgroundColor": {
+          "type": "string",
+          "default": "#2F7FE5",
+          "description": "Background color for hidden values (CSS color format)",
+          "category": "Appearance"
+        },
+        "camouflage.appearance.style": {
+          "type": "string",
+          "enum": [
+            "text",
+            "dotted",
+            "stars"
+          ],
+          "default": "text",
+          "description": "Style of hidden text",
+          "category": "Appearance"
+        },
+        "camouflage.hover.showPreview": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show value preview on hover",
+          "category": "Hover"
+        },
+        "camouflage.hover.message": {
+          "type": "string",
+          "default": "Environment value hidden by Camouflage extension",
+          "description": "Custom message to show on hover",
+          "category": "Hover"
+        },
+        "camouflage.selective.keyPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "*KEY*",
+            "*TOKEN*",
+            "*SECRET*",
+            "*PASSWORD*",
+            "*PWD*",
+            "*DB*",
+            "*DATABASE*",
+            "*PORT*"
+          ],
+          "description": "Patterns to match keys that should always be hidden",
+          "category": "Selective Hiding"
+        },
+        "camouflage.selective.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable selective hiding (only hide keys matching patterns when enabled)",
+          "category": "Selective Hiding"
+        },
+        "camouflage.selective.excludeKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Keys that should never be hidden",
+          "category": "Selective Hiding"
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "camouflage.hide",
+        "key": "ctrl+shift+h",
+        "mac": "cmd+shift+h",
+        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+      },
+      {
+        "command": "camouflage.reveal",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+      },
+      {
+        "command": "camouflage.toggleValue",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
+        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+      },
+      {
+        "command": "camouflage.toggleSelective",
+        "key": "ctrl+shift+s",
+        "mac": "cmd+shift+s",
+        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/ && config.camouflage.enabled == false",
+          "command": "camouflage.hide",
+          "group": "camouflage@1"
+        },
+        {
+          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/ && config.camouflage.enabled == true",
+          "command": "camouflage.reveal",
+          "group": "camouflage@1"
+        },
+        {
+          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
+          "command": "camouflage.toggleValue",
+          "group": "camouflage@2"
+        },
+        {
+          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
+          "command": "camouflage.toggleSelective",
+          "group": "camouflage@3"
+        },
+        {
+          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
+          "command": "camouflage.addToExcludeList",
+          "group": "camouflage@4"
+        }
+      ],
+      "editor/title": [
+        {
+          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/ && config.camouflage.enabled == false",
+          "command": "camouflage.hide",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/ && config.camouflage.enabled == true",
+          "command": "camouflage.reveal",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "commitlint": "commitlint --edit",
+    "semantic-release": "semantic-release",
+    "package": "vsce package",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
+    "@jest/globals": "^29.7.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^7.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.1",
+    "@types/jest": "^29.5.14",
+    "@types/node": "22.13.10",
+    "@types/vscode": "^1.96.0",
+    "@typescript-eslint/eslint-plugin": "^8.26.0",
+    "@typescript-eslint/parser": "^8.26.0",
+    "@vscode/vsce": "^3.2.2",
+    "eslint": "^9.22.0",
+    "husky": "^9.1.7",
+    "jest": "^29.7.0",
+    "lint-staged": "^15.4.3",
+    "prettier": "^3.5.3",
+    "semantic-release": "^24.2.3",
+    "ts-jest": "^29.2.6",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.0"
+  }
+}

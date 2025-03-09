@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="128" height="128" rx="16" fill="#2E8B57" />
+  
+  <!-- Camouflage pattern -->
+  <circle cx="24" cy="24" r="12" fill="#3CB371" />
+  <circle cx="64" cy="16" r="10" fill="#2E8B57" />
+  <circle cx="104" cy="32" r="14" fill="#43A047" />
+  <circle cx="16" cy="64" r="8" fill="#43A047" />
+  <circle cx="48" cy="88" r="16" fill="#3CB371" />
+  <circle cx="96" cy="80" r="12" fill="#2E8B57" />
+  <circle cx="112" cy="104" r="10" fill="#43A047" />
+  <circle cx="32" cy="112" r="8" fill="#3CB371" />
+  <circle cx="80" cy="112" r="6" fill="#2E8B57" />
+  
+  <!-- Eye symbol -->
+  <g transform="translate(64, 64) scale(0.5)">
+    <!-- Eye outline -->
+    <ellipse cx="0" cy="0" rx="70" ry="40" fill="white" stroke="#2E8B57" stroke-width="4" />
+    
+    <!-- Iris -->
+    <circle cx="0" cy="0" r="24" fill="#2E8B57" />
+    
+    <!-- Pupil -->
+    <circle cx="0" cy="0" r="12" fill="#1B5E20" />
+    
+    <!-- Highlight -->
+    <circle cx="-8" cy="-8" r="6" fill="white" />
+    
+    <!-- Slash through eye -->
+    <line x1="-50" y1="-30" x2="50" y2="30" stroke="#FF4A4A" stroke-width="8" stroke-linecap="round" />
+  </g>
+  
+  <!-- ENV text -->
+  <g transform="translate(64, 100) scale(0.8)">
+    <text x="-30" y="0" font-family="Arial, sans-serif" font-weight="bold" font-size="24" fill="white">.ENV</text>
+  </g>
+</svg>

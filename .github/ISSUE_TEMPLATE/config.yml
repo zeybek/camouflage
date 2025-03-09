@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-issue-config.json
+# This file follows GitHub's issue template configuration format
+# See: https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository
+
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/zeybek/camouflage#readme
+    about: Check out the project documentation before creating an issue
+  - name: 💬 Discussions
+    url: https://github.com/zeybek/camouflage/discussions
+    about: Ask questions and discuss with other community members
+  - name: 🤝 Code of Conduct
+    url: https://github.com/zeybek/camouflage/blob/main/.github/CODE_OF_CONDUCT.md
+    about: Please read this before interacting with the community
