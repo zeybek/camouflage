@@ -36,16 +36,44 @@ export function getFilePatterns(): string[] {
  * Get the text color for hidden values
  */
 export function getTextColor(): string {
-  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('appearance.textColor', '#666666');
+  // Get user configured color
+  const textColor = vscode.workspace
+    .getConfiguration(CONFIG_SECTION)
+    .get<string>('appearance.textColor', 'auto');
+
+  // If user has explicitly set a color (not 'auto'), use that
+  if (textColor !== 'auto') {
+    return textColor;
+  }
+
+  // Otherwise, return the 'auto' variable which will be resolved to the current theme's text color
+  // We use 'var(--vscode-button-foreground)' which is a CSS variable that VS Code provides
+  return 'var(--vscode-button-foreground)';
 }
 
 /**
  * Get the background color for hidden values
+ * This checks if the user has set 'auto' or 'transparent', and returns appropriate values
  */
 export function getBackgroundColor(): string {
-  return vscode.workspace
+  // Get user configured color
+  const backgroundColor = vscode.workspace
     .getConfiguration(CONFIG_SECTION)
-    .get('appearance.backgroundColor', 'transparent');
+    .get<string>('appearance.backgroundColor', 'auto');
+
+  // If user has explicitly set a color (not 'auto' or 'transparent'), use that
+  if (backgroundColor !== 'auto' && backgroundColor !== 'transparent') {
+    return backgroundColor;
+  }
+
+  // If set to transparent, return that
+  if (backgroundColor === 'transparent') {
+    return 'transparent';
+  }
+
+  // Otherwise, return the 'auto' variable which will be resolved to the current theme's color
+  // We use 'var(--vscode-button-background)' which is a CSS variable that VS Code provides
+  return 'var(--vscode-button-background)';
 }
 
 /**
@@ -108,4 +136,11 @@ export function getExcludeKeys(): string[] {
  */
 export function isSelectiveHidingEnabled(): boolean {
   return vscode.workspace.getConfiguration(CONFIG_SECTION).get('selective.enabled', false);
+}
+
+/**
+ * Get the appearance style for hiding values (text, dotted, stars, scramble)
+ */
+export function getAppearanceStyle(): string {
+  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('appearance.style', 'text');
 }

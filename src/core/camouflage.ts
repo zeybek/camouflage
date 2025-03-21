@@ -264,9 +264,12 @@ export class Camouflage {
       const valueStartPos = this.activeEditor.document.positionAt(match.index + equalsSignPos + 1);
       const valueEndPos = this.activeEditor.document.positionAt(match.index + match[0].length);
 
-      // Generate hidden text based on value length
+      // Generate hidden text based on value length and style
       const valueLength = value.length;
-      const hiddenText = generateHiddenText(style, valueLength);
+      const hiddenText =
+        style === HiddenTextStyle.SCRAMBLE
+          ? generateHiddenText(style, valueLength, value)
+          : generateHiddenText(style, valueLength);
 
       // Create a decoration for the value part
       const decoration = {

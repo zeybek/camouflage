@@ -17,6 +17,7 @@ Camouflage is a VS Code extension that helps protect sensitive environment varia
   - Text (default): `************************`
   - Dotted: `••••••••••••`
   - Stars: `************`
+  - Scramble: `sroedpasw` (randomly shuffled characters)
   - Custom: Define your own pattern (e.g., `###`)
 - 🎯 **Quick Toggle**: Easily toggle visibility via status bar or context menu
 - 🌈 **Customizable Appearance**: Configure colors and patterns to match your theme
@@ -65,6 +66,11 @@ Right-click on any line in your `.env` file to access these options:
 - **Toggle Selected Value**: Toggle visibility for the current value only
 - **Toggle Selective Hiding**: Switch between hiding all values or only selected ones
 - **Add to Exclude List**: Add the current key to the exclude list
+- **Change Style**: Sub-menu to quickly change between different hiding styles:
+  - Text: Standard text replacement (e.g., `************************`)
+  - Dotted: Uses dot characters (e.g., `••••••••••••`)
+  - Stars: Uses asterisk characters (e.g., `************`)
+  - Scramble: Randomly shuffles characters (e.g., `sroedpasw`)
 
 ### Keyboard Shortcuts
 
@@ -93,10 +99,15 @@ Access settings through:
 
 #### Appearance
 
-- `camouflage.appearance.style`: Hiding style (text, dotted, stars)
+- `camouflage.appearance.style`: Hiding style (text, dotted, stars, scramble)
 - `camouflage.appearance.hiddenText`: Text to display for hidden values
 - `camouflage.appearance.textColor`: Color of hidden text
+  - `auto`: Automatically uses your current theme's text color
+  - Custom CSS color: Use any valid CSS color value (e.g., `#FFFFFF`, `white`, `rgba(255,255,255,0.8)`)
 - `camouflage.appearance.backgroundColor`: Background color for hidden values
+  - `auto`: Automatically uses your current theme's primary color
+  - `transparent`: No background color
+  - Custom CSS color: Use any valid CSS color value (e.g., `#2F7FE5`, `red`, `rgba(255,0,0,0.5)`)
 
 #### Selective Hiding
 
@@ -122,6 +133,9 @@ SECRET_KEY=••••••••••••
 
 # Stars Style
 PASSWORD=************
+
+# Scramble Style
+DATABASE_URL=ettsaab:dlocmonpg///:
 ```
 
 ### Selective Hiding

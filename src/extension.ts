@@ -201,6 +201,50 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     })
   );
+
+  // Set style to text
+  context.subscriptions.push(
+    vscode.commands.registerCommand('camouflage.setStyleText', async () => {
+      await vscode.workspace
+        .getConfiguration('camouflage')
+        .update('appearance.style', 'text', true);
+      vscode.window.showInformationMessage('Camouflage style set to text');
+      setTimeout(() => camouflage.updateDecorationType(), 0);
+    })
+  );
+
+  // Set style to dotted
+  context.subscriptions.push(
+    vscode.commands.registerCommand('camouflage.setStyleDotted', async () => {
+      await vscode.workspace
+        .getConfiguration('camouflage')
+        .update('appearance.style', 'dotted', true);
+      vscode.window.showInformationMessage('Camouflage style set to dotted');
+      setTimeout(() => camouflage.updateDecorationType(), 0);
+    })
+  );
+
+  // Set style to stars
+  context.subscriptions.push(
+    vscode.commands.registerCommand('camouflage.setStyleStars', async () => {
+      await vscode.workspace
+        .getConfiguration('camouflage')
+        .update('appearance.style', 'stars', true);
+      vscode.window.showInformationMessage('Camouflage style set to stars');
+      setTimeout(() => camouflage.updateDecorationType(), 0);
+    })
+  );
+
+  // Set style to scramble
+  context.subscriptions.push(
+    vscode.commands.registerCommand('camouflage.setStyleScramble', async () => {
+      await vscode.workspace
+        .getConfiguration('camouflage')
+        .update('appearance.style', 'scramble', true);
+      vscode.window.showInformationMessage('Camouflage style set to scramble');
+      setTimeout(() => camouflage.updateDecorationType(), 0);
+    })
+  );
 }
 
 /**
