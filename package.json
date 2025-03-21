@@ -2,7 +2,7 @@
   "name": "camouflage",
   "displayName": "Camouflage",
   "description": "Hide sensitive environment values in .env files",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "zeybek",
   "author": {
     "name": "Ahmet Zeybek",

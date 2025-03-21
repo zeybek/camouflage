@@ -1,3 +1,14 @@
+# [1.1.0](https://github.com/zeybek/camouflage/compare/v1.0.0...v1.1.0) (2025-03-21)
+
+### Bug Fixes
+
+- commitlint ([e52302a](https://github.com/zeybek/camouflage/commit/e52302a9bfdcb8ceb141c1dd51300c7a54ba3ea4))
+- update scrambled text example in README ([#3](https://github.com/zeybek/camouflage/issues/3)) ([70bb6b8](https://github.com/zeybek/camouflage/commit/70bb6b87321a2c44cc634f3fd0775c4eaf813f8a))
+
+### Features
+
+- add new camouflage styles and enhance appearance configuration ([#2](https://github.com/zeybek/camouflage/issues/2)) ([eec7834](https://github.com/zeybek/camouflage/commit/eec7834fe555a6c5f84f7e33748155ed7294d26e))
+
 # 1.0.0 (2025-03-09)
 
 ### Features
