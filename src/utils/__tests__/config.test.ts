@@ -101,15 +101,20 @@ describe('config utils', () => {
   });
 
   describe('getTextColor', () => {
-    it('should return default text color', () => {
-      const defaultColor = '#666666';
-      expect(config.getTextColor()).toBe(defaultColor);
-      expect(mockConfig.get).toHaveBeenCalledWith('appearance.textColor', defaultColor);
+    it('should return auto variable when set to auto', () => {
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'appearance.textColor') {
+          return 'auto';
+        }
+        return defaultValue;
+      });
+
+      expect(config.getTextColor()).toBe('var(--vscode-button-foreground)');
+      expect(mockConfig.get).toHaveBeenCalledWith('appearance.textColor', 'auto');
     });
 
-    it('should return configured text color', () => {
+    it('should return configured text color when not auto', () => {
       const customColor = '#FF0000';
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
         if (key === 'appearance.textColor') {
           return customColor;
@@ -122,15 +127,31 @@ describe('config utils', () => {
   });
 
   describe('getBackgroundColor', () => {
-    it('should return default background color', () => {
-      const defaultColor = 'transparent';
-      expect(config.getBackgroundColor()).toBe(defaultColor);
-      expect(mockConfig.get).toHaveBeenCalledWith('appearance.backgroundColor', defaultColor);
+    it('should return auto variable when set to auto', () => {
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'appearance.backgroundColor') {
+          return 'auto';
+        }
+        return defaultValue;
+      });
+
+      expect(config.getBackgroundColor()).toBe('var(--vscode-button-background)');
+      expect(mockConfig.get).toHaveBeenCalledWith('appearance.backgroundColor', 'auto');
     });
 
-    it('should return configured background color', () => {
+    it('should return transparent when set to transparent', () => {
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'appearance.backgroundColor') {
+          return 'transparent';
+        }
+        return defaultValue;
+      });
+
+      expect(config.getBackgroundColor()).toBe('transparent');
+    });
+
+    it('should return configured background color when not auto or transparent', () => {
       const customColor = '#0000FF';
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
         if (key === 'appearance.backgroundColor') {
           return customColor;

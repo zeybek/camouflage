@@ -1,4 +1,9 @@
 /**
- * Style options for hiding text
+ * Style for the hidden text
  */
-export type HiddenTextStyle = 'text' | 'dotted' | 'stars';
+export enum HiddenTextStyle {
+  TEXT = 'text',
+  DOTTED = 'dotted',
+  STARS = 'stars',
+  SCRAMBLE = 'scramble',
+}

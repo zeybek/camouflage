@@ -54,6 +54,26 @@
         "command": "camouflage.addToExcludeList",
         "title": "Camouflage: Add to Exclude List",
         "icon": "assets/icon.png"
+      },
+      {
+        "command": "camouflage.setStyleText",
+        "title": "Camouflage: Set Style to Text",
+        "icon": "assets/icon.png"
+      },
+      {
+        "command": "camouflage.setStyleDotted",
+        "title": "Camouflage: Set Style to Dotted",
+        "icon": "assets/icon.png"
+      },
+      {
+        "command": "camouflage.setStyleStars",
+        "title": "Camouflage: Set Style to Stars",
+        "icon": "assets/icon.png"
+      },
+      {
+        "command": "camouflage.setStyleScramble",
+        "title": "Camouflage: Set Style to Scramble",
+        "icon": "assets/icon.png"
       }
     ],
     "configuration": {
@@ -91,14 +111,40 @@
         },
         "camouflage.appearance.textColor": {
           "type": "string",
-          "default": "#FFFFFF",
-          "description": "Color of the hidden text (CSS color format)",
+          "enum": [
+            "auto",
+            "#FFFFFF",
+            "#000000",
+            "#FF0000",
+            "#00FF00",
+            "#0000FF",
+            "#FFFF00",
+            "#00FFFF",
+            "#FF00FF",
+            "#808080",
+            "#C0C0C0"
+          ],
+          "default": "auto",
+          "description": "Color of the hidden text. Use 'auto' for theme color or a CSS color value",
           "category": "Appearance"
         },
         "camouflage.appearance.backgroundColor": {
           "type": "string",
-          "default": "#2F7FE5",
-          "description": "Background color for hidden values (CSS color format)",
+          "enum": [
+            "auto",
+            "transparent",
+            "#2F7FE5",
+            "#FF0000",
+            "#00FF00",
+            "#0000FF",
+            "#FFFF00",
+            "#00FFFF",
+            "#FF00FF",
+            "#000000",
+            "#FFFFFF"
+          ],
+          "default": "auto",
+          "description": "Background color for hidden values. Use 'auto' for theme color or a CSS color value",
           "category": "Appearance"
         },
         "camouflage.appearance.style": {
@@ -106,7 +152,8 @@
           "enum": [
             "text",
             "dotted",
-            "stars"
+            "stars",
+            "scramble"
           ],
           "default": "text",
           "description": "Style of hidden text",
@@ -211,6 +258,11 @@
           "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
           "command": "camouflage.addToExcludeList",
           "group": "camouflage@4"
+        },
+        {
+          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
+          "submenu": "camouflage.styleSubMenu",
+          "group": "camouflage@5"
         }
       ],
       "editor/title": [
@@ -224,8 +276,32 @@
           "command": "camouflage.reveal",
           "group": "navigation"
         }
+      ],
+      "camouflage.styleSubMenu": [
+        {
+          "command": "camouflage.setStyleText",
+          "group": "style@1"
+        },
+        {
+          "command": "camouflage.setStyleDotted",
+          "group": "style@2"
+        },
+        {
+          "command": "camouflage.setStyleStars",
+          "group": "style@3"
+        },
+        {
+          "command": "camouflage.setStyleScramble",
+          "group": "style@4"
+        }
       ]
-    }
+    },
+    "submenus": [
+      {
+        "id": "camouflage.styleSubMenu",
+        "label": "Camouflage: Change Style"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
