@@ -17,7 +17,7 @@ Camouflage is a VS Code extension that helps protect sensitive environment varia
   - Text (default): `************************`
   - Dotted: `••••••••••••`
   - Stars: `************`
-  - Scramble: `sroedpasw` (randomly shuffled characters)
+  - Scramble: `sroedpaswd` (randomly shuffled characters)
   - Custom: Define your own pattern (e.g., `###`)
 - 🎯 **Quick Toggle**: Easily toggle visibility via status bar or context menu
 - 🌈 **Customizable Appearance**: Configure colors and patterns to match your theme
