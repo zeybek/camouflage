@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { Debounce, HandleErrors, Log, MeasurePerformance, ValidateConfig } from '../decorators';
 import { generateHiddenText } from '../lib/text-generator';
 import * as config from '../utils/config';
-import { ENV_VAR_REGEX, isEnvFile } from '../utils/file';
+import { findEnvVariables, isEnvFile } from '../utils/file';
 import { HiddenTextStyle } from './types';
 
 /**
@@ -174,12 +174,11 @@ export class Camouflage {
     const text = this.activeEditor.document.getText();
     const decorations: vscode.DecorationOptions[] = [];
 
-    // Reset regex lastIndex to ensure it starts from the beginning
-    ENV_VAR_REGEX.lastIndex = 0;
+    // Find all environment variables using the safer findEnvVariables function
+    const matches = findEnvVariables(text);
 
-    // Find all environment variables
-    let match;
-    while ((match = ENV_VAR_REGEX.exec(text))) {
+    // Process each environment variable match
+    for (const match of matches) {
       const key = match[1];
       const value = match[2];
 
@@ -260,6 +259,10 @@ export class Camouflage {
       }
 
       // Find the position where the value starts (after the equals sign)
+      if (match.index === undefined) {
+        continue; // Skip if index is undefined (shouldn't happen with matchAll, but for type safety)
+      }
+
       const equalsSignPos = match[0].indexOf('=');
       const valueStartPos = this.activeEditor.document.positionAt(match.index + equalsSignPos + 1);
       const valueEndPos = this.activeEditor.document.positionAt(match.index + match[0].length);

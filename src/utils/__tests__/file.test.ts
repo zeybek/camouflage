@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { ENV_VAR_REGEX, isEnvFile } from '../file';
+import { findEnvVariables, isEnvFile } from '../file';
 
 describe('file utils', () => {
   describe('isEnvFile', () => {
@@ -33,10 +33,10 @@ describe('file utils', () => {
     });
   });
 
-  describe('ENV_VAR_REGEX', () => {
+  describe('findEnvVariables', () => {
     it('should match simple key-value pairs', () => {
       const text = 'API_KEY=abc123';
-      const matches = [...text.matchAll(ENV_VAR_REGEX)];
+      const matches = findEnvVariables(text);
 
       expect(matches.length).toBe(1);
       expect(matches[0][1]).toBe('API_KEY');
@@ -45,7 +45,7 @@ describe('file utils', () => {
 
     it('should match key-value pairs with export', () => {
       const text = 'export DATABASE_URL=postgres://user:pass@localhost:5432/db';
-      const matches = [...text.matchAll(ENV_VAR_REGEX)];
+      const matches = findEnvVariables(text);
 
       expect(matches.length).toBe(1);
       expect(matches[0][1]).toBe('DATABASE_URL');
@@ -54,7 +54,7 @@ describe('file utils', () => {
 
     it('should match keys with underscores and numbers', () => {
       const text = 'API_KEY_2=abc123';
-      const matches = [...text.matchAll(ENV_VAR_REGEX)];
+      const matches = findEnvVariables(text);
 
       expect(matches.length).toBe(1);
       expect(matches[0][1]).toBe('API_KEY_2');
@@ -63,7 +63,7 @@ describe('file utils', () => {
 
     it('should match values with spaces', () => {
       const text = 'MESSAGE=Hello World';
-      const matches = [...text.matchAll(ENV_VAR_REGEX)];
+      const matches = findEnvVariables(text);
 
       expect(matches.length).toBe(1);
       expect(matches[0][1]).toBe('MESSAGE');
@@ -75,7 +75,7 @@ describe('file utils', () => {
 DATABASE_URL=postgres://localhost:5432/db
 export DEBUG=true`;
 
-      const matches = [...text.matchAll(ENV_VAR_REGEX)];
+      const matches = findEnvVariables(text);
       expect(matches.length).toBe(3);
     });
 
@@ -88,7 +88,7 @@ export DEBUG=true`;
       ];
 
       for (const line of invalidLines) {
-        const matches = [...line.matchAll(ENV_VAR_REGEX)];
+        const matches = findEnvVariables(line);
         expect(matches.length).toBe(0);
       }
     });
