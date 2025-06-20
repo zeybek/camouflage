@@ -1,3 +1,9 @@
+## [1.1.1](https://github.com/zeybek/camouflage/compare/v1.1.0...v1.1.1) (2025-06-20)
+
+### Bug Fixes
+
+- hide commented env vars ([#7](https://github.com/zeybek/camouflage/issues/7)) ([8cf1147](https://github.com/zeybek/camouflage/commit/8cf1147c78df96f619695450e4b352fd975b0663))
+
 # [1.1.0](https://github.com/zeybek/camouflage/compare/v1.0.0...v1.1.0) (2025-03-21)
 
 ### Bug Fixes
