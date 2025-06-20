@@ -251,5 +251,8 @@ export function activate(context: vscode.ExtensionContext): void {
  * This method is called when your extension is deactivated
  */
 export function deactivate(): void {
-  // Clean up resources if needed
+  // Clean up resources to prevent memory leaks
+  if (camouflage) {
+    camouflage.dispose();
+  }
 }

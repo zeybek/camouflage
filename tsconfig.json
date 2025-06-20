@@ -10,5 +10,14 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "src/__mocks__/**",
+    "src/setupTests.ts",
+    "coverage/**",
+    "out/**"
+  ]
 }

@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import { Debounce, HandleErrors, Log, MeasurePerformance, ValidateConfig } from '../decorators';
 import { generateHiddenText } from '../lib/text-generator';
 import * as config from '../utils/config';
-import { findEnvVariables, isEnvFile } from '../utils/file';
+import { findAllEnvVariables, isEnvFile } from '../utils/file';
+import { matchesAnyPattern } from '../utils/pattern-matcher';
 import { HiddenTextStyle } from './types';
 
 /**
@@ -24,6 +25,11 @@ export class Camouflage {
    * Update status bar item
    */
   private updateStatusBarItem(): void {
+    // Defensive check: Don't update if disposed
+    if (!this.statusBarItem) {
+      return;
+    }
+
     const isEnabled = config.isEnabled();
     const isSelectiveEnabled = config.isSelectiveHidingEnabled();
 
@@ -111,8 +117,10 @@ export class Camouflage {
   @HandleErrors()
   @Log('Updating decoration type')
   public updateDecorationType(): void {
+    // Clean up existing decoration type
     if (this.decorationType) {
       this.decorationType.dispose();
+      this.decorationType = undefined;
     }
 
     const isEnabled = config.isEnabled();
@@ -174,122 +182,89 @@ export class Camouflage {
     const text = this.activeEditor.document.getText();
     const decorations: vscode.DecorationOptions[] = [];
 
-    // Find all environment variables using the safer findEnvVariables function
-    const matches = findEnvVariables(text);
+    // Find all environment variables (both regular and commented)
+    const { regular: regularMatches, commented: commentedMatches } = findAllEnvVariables(text);
 
-    // Process each environment variable match
-    for (const match of matches) {
-      const key = match[1];
-      const value = match[2];
+    // Helper function to process matches
+    const processMatches = (matches: RegExpMatchArray[], isCommented: boolean = false) => {
+      for (const match of matches) {
+        const key = match[1];
+        const value = match[2];
 
-      // Skip empty values
-      if (!value.trim()) {
-        continue;
-      }
-
-      // Check if this key should be excluded
-      const excludeKeys = config.getExcludeKeys();
-      if (excludeKeys.length > 0) {
-        const isExcluded = excludeKeys.some((pattern) => {
-          // Handle different pattern types for exclude keys:
-          // *KEY* -> contains KEY anywhere
-          // KEY* -> starts with KEY
-          // *KEY -> ends with KEY
-          // KEY -> exact match
-          let regexPattern: string;
-
-          if (pattern.startsWith('*') && pattern.endsWith('*')) {
-            // *KEY* -> contains KEY anywhere
-            regexPattern = pattern.slice(1, -1);
-          } else if (pattern.startsWith('*')) {
-            // *KEY -> ends with KEY
-            regexPattern = pattern.slice(1) + '$';
-          } else if (pattern.endsWith('*')) {
-            // KEY* -> starts with KEY
-            regexPattern = '^' + pattern.slice(0, -1);
-          } else {
-            // KEY -> exact match
-            regexPattern = '^' + pattern + '$';
-          }
-
-          const regex = new RegExp(regexPattern, 'i');
-          return regex.test(key);
-        });
-
-        if (isExcluded) {
+        // Skip empty values
+        if (!value.trim()) {
           continue;
         }
-      }
 
-      // Check if selective hiding is enabled
-      const isSelectiveEnabled = config.isSelectiveHidingEnabled();
-
-      if (isSelectiveEnabled) {
-        // Only hide if key matches one of the patterns
-        const keyPatterns = config.getKeyPatterns();
-        const matchesPattern = keyPatterns.some((pattern) => {
-          // Handle different pattern types:
-          // *KEY* -> contains KEY anywhere
-          // KEY* -> starts with KEY
-          // *KEY -> ends with KEY
-          // KEY -> exact match
-          let regexPattern: string;
-
-          if (pattern.startsWith('*') && pattern.endsWith('*')) {
-            // *KEY* -> contains KEY anywhere
-            regexPattern = pattern.slice(1, -1);
-          } else if (pattern.startsWith('*')) {
-            // *KEY -> ends with KEY
-            regexPattern = pattern.slice(1) + '$';
-          } else if (pattern.endsWith('*')) {
-            // KEY* -> starts with KEY
-            regexPattern = '^' + pattern.slice(0, -1);
-          } else {
-            // KEY -> exact match
-            regexPattern = '^' + pattern + '$';
+        // Check if this key should be excluded
+        const excludeKeys = config.getExcludeKeys();
+        if (excludeKeys.length > 0) {
+          const isExcluded = matchesAnyPattern(key, excludeKeys);
+          if (isExcluded) {
+            continue;
           }
-
-          const regex = new RegExp(regexPattern, 'i');
-          return regex.test(key);
-        });
-
-        if (!matchesPattern) {
-          continue;
         }
-      }
 
-      // Find the position where the value starts (after the equals sign)
-      if (match.index === undefined) {
-        continue; // Skip if index is undefined (shouldn't happen with matchAll, but for type safety)
-      }
+        // Check if selective hiding is enabled
+        const isSelectiveEnabled = config.isSelectiveHidingEnabled();
 
-      const equalsSignPos = match[0].indexOf('=');
-      const valueStartPos = this.activeEditor.document.positionAt(match.index + equalsSignPos + 1);
-      const valueEndPos = this.activeEditor.document.positionAt(match.index + match[0].length);
+        if (isSelectiveEnabled) {
+          // Only hide if key matches one of the patterns
+          const keyPatterns = config.getKeyPatterns();
+          const matchesPattern = matchesAnyPattern(key, keyPatterns);
 
-      // Generate hidden text based on value length and style
-      const valueLength = value.length;
-      const hiddenText =
-        style === HiddenTextStyle.SCRAMBLE
-          ? generateHiddenText(style, valueLength, value)
-          : generateHiddenText(style, valueLength);
+          if (!matchesPattern) {
+            continue;
+          }
+        }
 
-      // Create a decoration for the value part
-      const decoration = {
-        range: new vscode.Range(valueStartPos, valueEndPos),
-        renderOptions: {
-          after: {
-            contentText: hiddenText,
-            color: textColor,
-            backgroundColor,
-            margin: '0 2px',
+        // Find the position where the value starts (after the equals sign)
+        if (match.index === undefined) {
+          continue; // Skip if index is undefined (shouldn't happen with matchAll, but for type safety)
+        }
+
+        if (!this.activeEditor) {
+          continue; // Skip if activeEditor is undefined
+        }
+
+        const equalsSignPos = match[0].indexOf('=');
+        const valueStartPos = this.activeEditor.document.positionAt(
+          match.index + equalsSignPos + 1
+        );
+        const valueEndPos = this.activeEditor.document.positionAt(match.index + match[0].length);
+
+        // Generate hidden text based on value length and style
+        const valueLength = value.length;
+        const hiddenText =
+          style === HiddenTextStyle.SCRAMBLE
+            ? generateHiddenText(style, valueLength, value)
+            : generateHiddenText(style, valueLength);
+
+        // Create a decoration for the value part
+        const decoration = {
+          range: new vscode.Range(valueStartPos, valueEndPos),
+          renderOptions: {
+            after: {
+              contentText: hiddenText,
+              color: textColor,
+              backgroundColor,
+              margin: '0 2px',
+            },
           },
-        },
-        hoverMessage: showPreview ? `${hoverMessage}\nValue: ${value}` : hoverMessage,
-      };
+          hoverMessage: showPreview
+            ? `${hoverMessage}${isCommented ? ' (commented)' : ''}\nValue: ${value}`
+            : `${hoverMessage}${isCommented ? ' (commented)' : ''}`,
+        };
 
-      decorations.push(decoration);
-    }
+        decorations.push(decoration);
+      }
+    };
+
+    // Process regular environment variables
+    processMatches(regularMatches, false);
+
+    // Process commented environment variables
+    processMatches(commentedMatches, true);
 
     this.activeEditor.setDecorations(this.decorationType, decorations);
   }
@@ -300,5 +275,27 @@ export class Camouflage {
   @Debounce(50)
   private triggerUpdateDecorations(): void {
     this.updateDecorations();
+  }
+
+  /**
+   * Dispose all resources to prevent memory leaks
+   * Should be called when the extension is deactivated
+   */
+  @Log('Disposing camouflage resources')
+  @HandleErrors()
+  public dispose(): void {
+    // Dispose decoration type if it exists
+    if (this.decorationType) {
+      this.decorationType.dispose();
+      this.decorationType = undefined;
+    }
+
+    // Dispose status bar item if it exists
+    if (this.statusBarItem) {
+      this.statusBarItem.dispose();
+    }
+
+    // Clear editor reference to prevent potential memory leaks
+    this.activeEditor = undefined;
   }
 }
