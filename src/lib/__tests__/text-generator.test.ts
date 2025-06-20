@@ -8,6 +8,20 @@ jest.mock('../../utils/config', () => ({
   getConfig: jest.fn(),
 }));
 
+// Mock the vscode module for config
+jest.mock('vscode', () => ({
+  workspace: {
+    getConfiguration: jest.fn(() => ({
+      get: jest.fn((key: string, defaultValue?: string) => {
+        if (key === 'appearance.hiddenText') {
+          return defaultValue || '************************';
+        }
+        return defaultValue;
+      }),
+    })),
+  },
+}));
+
 describe('text-generator', () => {
   describe('generateHiddenText', () => {
     it('should generate dotted text with specified length', () => {
@@ -165,6 +179,102 @@ describe('text-generator', () => {
       // Assert
       // Should fall back to stars when no original text is provided
       expect(result).toBe('********');
+    });
+
+    it('should handle scramble style with single character', () => {
+      const originalText = 'a';
+      const result = generateHiddenText(
+        HiddenTextStyle.SCRAMBLE,
+        originalText.length,
+        originalText
+      );
+
+      expect(result).toBe('*');
+    });
+
+    it('should handle scramble style with three characters', () => {
+      const originalText = 'abc';
+      const result = generateHiddenText(
+        HiddenTextStyle.SCRAMBLE,
+        originalText.length,
+        originalText
+      );
+
+      expect(result).toHaveLength(3);
+      // For 3+ character strings, first and last character should be preserved (when possible)
+      // But due to randomness, we'll just check length and that it contains the same characters
+      expect(result.split('').sort()).toEqual(originalText.split('').sort());
+    });
+
+    it('should handle scramble style with long text and preserve first/last chars', () => {
+      const originalText = 'thisisaverylongpassword';
+      const result = generateHiddenText(
+        HiddenTextStyle.SCRAMBLE,
+        originalText.length,
+        originalText
+      );
+
+      expect(result).toHaveLength(originalText.length);
+      expect(result[0]).toBe('t'); // First character preserved
+      expect(result[result.length - 1]).toBe('d'); // Last character preserved
+      expect(result).not.toBe(originalText);
+    });
+
+    it('should handle scramble when first character already in first position', () => {
+      // Test edge case where first character is already at the beginning after shuffle
+      const originalText = 'abcdef';
+
+      // Mock Math.random to control the shuffle behavior
+      const originalRandom = Math.random;
+      let callCount = 0;
+      Math.random = jest.fn(() => {
+        // Return deterministic values to control shuffle
+        return callCount++ % 2 === 0 ? 0.1 : 0.9;
+      });
+
+      const result = generateHiddenText(
+        HiddenTextStyle.SCRAMBLE,
+        originalText.length,
+        originalText
+      );
+
+      expect(result).toHaveLength(originalText.length);
+      expect(result[0]).toBe('a'); // First character preserved
+      expect(result[result.length - 1]).toBe('f'); // Last character preserved
+
+      // Restore original Math.random
+      Math.random = originalRandom;
+    });
+
+    it('should handle scramble when last character already in last position', () => {
+      const originalText = 'password123';
+
+      // Test multiple runs to ensure edge cases are covered
+      for (let i = 0; i < 5; i++) {
+        const result = generateHiddenText(
+          HiddenTextStyle.SCRAMBLE,
+          originalText.length,
+          originalText
+        );
+
+        expect(result).toHaveLength(originalText.length);
+        expect(result[0]).toBe('p'); // First character preserved
+        expect(result[result.length - 1]).toBe('3'); // Last character preserved
+      }
+    });
+
+    it('should handle scramble when character is not found during swap', () => {
+      // This tests the edge case where findIndex might return -1
+      const originalText = 'unique';
+      const result = generateHiddenText(
+        HiddenTextStyle.SCRAMBLE,
+        originalText.length,
+        originalText
+      );
+
+      expect(result).toHaveLength(originalText.length);
+      expect(result[0]).toBe('u'); // First character preserved
+      expect(result[result.length - 1]).toBe('e'); // Last character preserved
     });
   });
 });

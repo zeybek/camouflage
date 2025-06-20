@@ -57,6 +57,18 @@ describe('pattern-matcher', () => {
       expect(regex.test('MY_DB[URL]_CONFIG')).toBe(true);
       expect(regex.test('DBXURLX')).toBe(false); // brackets should be literal
     });
+
+    it('should handle empty patterns', () => {
+      const regex = patternToRegex('');
+      expect(regex.test('')).toBe(true);
+      expect(regex.test('anything')).toBe(false);
+    });
+
+    it('should handle single asterisk pattern', () => {
+      const regex = patternToRegex('*');
+      expect(regex.test('')).toBe(true);
+      expect(regex.test('anything')).toBe(true);
+    });
   });
 
   describe('matchesAnyPattern', () => {
@@ -91,6 +103,12 @@ describe('pattern-matcher', () => {
 
       console.warn = originalWarn;
     });
+
+    it('should handle empty pattern strings', () => {
+      const patterns = ['', '*KEY*'];
+      expect(matchesAnyPattern('API_KEY', patterns)).toBe(true);
+      expect(matchesAnyPattern('', patterns)).toBe(true); // empty pattern matches empty string
+    });
   });
 
   describe('PatternMatcher class', () => {
@@ -124,6 +142,15 @@ describe('pattern-matcher', () => {
 
     it('should handle empty patterns', () => {
       expect(matcher.matches('API_KEY', [])).toBe(false);
+    });
+
+    it('should handle multiple different patterns', () => {
+      const patterns1 = ['*KEY*'];
+      const patterns2 = ['*TOKEN*'];
+
+      expect(matcher.matches('API_KEY', patterns1)).toBe(true);
+      expect(matcher.matches('ACCESS_TOKEN', patterns2)).toBe(true);
+      expect(matcher.matches('NODE_ENV', patterns1)).toBe(false);
     });
   });
 
