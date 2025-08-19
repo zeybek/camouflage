@@ -1,7 +1,7 @@
 {
   "name": "camouflage",
   "displayName": "Camouflage",
-  "description": "Hide sensitive environment values in .env files",
+  "description": "Hide sensitive values in configuration files",
   "version": "1.1.1",
   "publisher": "zeybek",
   "author": {
@@ -22,9 +22,6 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:dotenv",
-    "onLanguage:properties",
-    "onLanguage:plaintext",
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
@@ -88,7 +85,7 @@
         "camouflage.autoHide": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically hide values when opening .env files",
+          "description": "Automatically hide values when opening files matching the configured patterns",
           "category": "General"
         },
         "camouflage.files.patterns": {
@@ -100,7 +97,7 @@
             ".env*",
             "*.env"
           ],
-          "description": "File patterns to apply hiding (e.g., .env, .env.local, etc.)",
+          "description": "File patterns to apply hiding (supports glob patterns like *.env, .env*, config.*, etc.)",
           "category": "Files"
         },
         "camouflage.appearance.hiddenText": {
@@ -167,7 +164,7 @@
         },
         "camouflage.hover.message": {
           "type": "string",
-          "default": "Environment value hidden by Camouflage extension",
+          "default": "Value hidden by Camouflage extension",
           "description": "Custom message to show on hover",
           "category": "Hover"
         },
@@ -184,9 +181,11 @@
             "*PWD*",
             "*DB*",
             "*DATABASE*",
-            "*PORT*"
+            "*PORT*",
+            "*API*",
+            "*AUTH*"
           ],
-          "description": "Patterns to match keys that should always be hidden",
+          "description": "Patterns to match keys/variables that should always be hidden",
           "category": "Selective Hiding"
         },
         "camouflage.selective.enabled": {
@@ -211,68 +210,64 @@
         "command": "camouflage.hide",
         "key": "ctrl+shift+h",
         "mac": "cmd+shift+h",
-        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+        "when": "editorTextFocus"
       },
       {
         "command": "camouflage.reveal",
         "key": "ctrl+shift+r",
         "mac": "cmd+shift+r",
-        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+        "when": "editorTextFocus"
       },
       {
         "command": "camouflage.toggleValue",
         "key": "ctrl+shift+t",
         "mac": "cmd+shift+t",
-        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+        "when": "editorTextFocus"
       },
       {
         "command": "camouflage.toggleSelective",
         "key": "ctrl+shift+s",
         "mac": "cmd+shift+s",
-        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+        "when": "editorTextFocus"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/ && config.camouflage.enabled == false",
+          "when": "config.camouflage.enabled == false",
           "command": "camouflage.hide",
           "group": "camouflage@1"
         },
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/ && config.camouflage.enabled == true",
+          "when": "config.camouflage.enabled == true",
           "command": "camouflage.reveal",
           "group": "camouflage@1"
         },
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
           "command": "camouflage.toggleValue",
           "group": "camouflage@2"
         },
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
           "command": "camouflage.toggleSelective",
           "group": "camouflage@3"
         },
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
           "command": "camouflage.addToExcludeList",
           "group": "camouflage@4"
         },
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
           "submenu": "camouflage.styleSubMenu",
           "group": "camouflage@5"
         }
       ],
       "editor/title": [
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/ && config.camouflage.enabled == false",
+          "when": "config.camouflage.enabled == false",
           "command": "camouflage.hide",
           "group": "navigation"
         },
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/ && config.camouflage.enabled == true",
+          "when": "config.camouflage.enabled == true",
           "command": "camouflage.reveal",
           "group": "navigation"
         }

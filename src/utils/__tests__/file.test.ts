@@ -1,10 +1,27 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import {
   findAllEnvVariables,
   findCommentedEnvVariables,
   findEnvVariables,
   isEnvFile,
 } from '../file';
+
+// Mock VS Code API
+jest.mock(
+  'vscode',
+  () => ({
+    workspace: {
+      getConfiguration: jest.fn().mockReturnValue({
+        get: jest.fn(),
+      }),
+    },
+  }),
+  { virtual: true }
+);
+
+// Get the mock after it's created
+import * as vscode from 'vscode';
+const mockGet = (vscode.workspace.getConfiguration() as any).get;
 
 describe('file utils', () => {
   describe('findEnvVariables', () => {
@@ -43,6 +60,47 @@ describe('file utils', () => {
 
       expect(matches).toHaveLength(2);
       expect(matches[0][2]).toBe('secret with spaces');
+    });
+
+    it('should find PHP define() statements', () => {
+      const text = `define('API_KEY', 'secret123');
+define("DB_PASSWORD", "password456");
+define('STRIPE_SECRET', 'sk_test_123');`;
+      const matches = findEnvVariables(text);
+
+      expect(matches).toHaveLength(3);
+      expect(matches[0][1]).toBe('API_KEY');
+      expect(matches[0][2]).toBe('secret123');
+      expect(matches[1][1]).toBe('DB_PASSWORD');
+      expect(matches[1][2]).toBe('password456');
+      expect(matches[2][1]).toBe('STRIPE_SECRET');
+      expect(matches[2][2]).toBe('sk_test_123');
+    });
+
+    it('should find PHP array syntax', () => {
+      const text = `'api_key' => 'secret123',
+"db_password" => "password456",
+'smtp_user' => 'user@example.com'`;
+      const matches = findEnvVariables(text);
+
+      expect(matches).toHaveLength(3);
+      expect(matches[0][1]).toBe('api_key');
+      expect(matches[0][2]).toBe('secret123');
+      expect(matches[1][1]).toBe('db_password');
+      expect(matches[1][2]).toBe('password456');
+    });
+
+    it('should find YAML/JSON format', () => {
+      const text = `api_key: "secret123"
+"db_password": "password456"
+smtp_user: 'user@example.com'`;
+      const matches = findEnvVariables(text);
+
+      expect(matches).toHaveLength(3);
+      expect(matches[0][1]).toBe('api_key');
+      expect(matches[0][2]).toBe('secret123');
+      expect(matches[1][1]).toBe('db_password');
+      expect(matches[1][2]).toBe('password456');
     });
 
     it('should ignore commented lines', () => {
@@ -138,20 +196,64 @@ export ANOTHER_KEY=value
   });
 
   describe('isEnvFile', () => {
-    it('should identify .env files', () => {
+    it('should identify files matching default patterns', () => {
+      // Mock default configuration
+      mockGet.mockReturnValue(['.env*', '*.env']);
+
       expect(isEnvFile('.env')).toBe(true);
       expect(isEnvFile('path/to/.env')).toBe(true);
       expect(isEnvFile('.env.local')).toBe(true);
       expect(isEnvFile('.env.development')).toBe(true);
       expect(isEnvFile('development.env')).toBe(true);
-      expect(isEnvFile('.envrc')).toBe(true);
+      expect(isEnvFile('/full/path/to/production.env')).toBe(true);
     });
 
-    it('should reject non-env files', () => {
-      expect(isEnvFile('config.json')).toBe(false);
+    it('should identify files matching custom patterns', () => {
+      // Mock custom configuration
+      mockGet.mockReturnValue(['config.*', '*.conf', 'settings*']);
+
+      expect(isEnvFile('config.json')).toBe(true);
+      expect(isEnvFile('config.yaml')).toBe(true);
+      expect(isEnvFile('database.conf')).toBe(true);
+      expect(isEnvFile('settings.ini')).toBe(true);
+      expect(isEnvFile('settings')).toBe(true);
+      expect(isEnvFile('/path/to/config.properties')).toBe(true);
+    });
+
+    it('should identify PHP configuration files', () => {
+      // Mock PHP configuration patterns
+      mockGet.mockReturnValue(['*.php', '*config*.php', 'database.php', '*.env']);
+
+      expect(isEnvFile('test-config.php')).toBe(true);
+      expect(isEnvFile('config.php')).toBe(true);
+      expect(isEnvFile('database-config.php')).toBe(true);
+      expect(isEnvFile('app-config-prod.php')).toBe(true);
+      expect(isEnvFile('settings.php')).toBe(true);
+      expect(isEnvFile('/full/path/to/secrets.php')).toBe(true);
+      expect(isEnvFile('.env')).toBe(true);
+
+      // Should not match non-PHP files when only PHP patterns are configured
+      expect(isEnvFile('script.js')).toBe(false);
+      expect(isEnvFile('style.css')).toBe(false);
+      expect(isEnvFile('readme.txt')).toBe(false);
+    });
+
+    it('should reject files not matching patterns', () => {
+      // Mock default configuration
+      mockGet.mockReturnValue(['.env*', '*.env']);
+
       expect(isEnvFile('package.json')).toBe(false);
-      expect(isEnvFile('environment.txt')).toBe(false);
       expect(isEnvFile('README.md')).toBe(false);
+      expect(isEnvFile('environment.txt')).toBe(false);
+      expect(isEnvFile('config.json')).toBe(false);
+    });
+
+    it('should handle empty patterns', () => {
+      // Mock empty configuration
+      mockGet.mockReturnValue([]);
+
+      expect(isEnvFile('.env')).toBe(false);
+      expect(isEnvFile('config.json')).toBe(false);
     });
   });
 });

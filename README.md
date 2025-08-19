@@ -79,6 +79,31 @@ Right-click on any line in your `.env` file to access these options:
 - `Ctrl+Shift+T` / `Cmd+Shift+T`: Toggle the value under cursor
 - `Ctrl+Shift+S` / `Cmd+Shift+S`: Toggle selective hiding mode
 
+## Working with Any File Type
+
+Camouflage now supports any file type through configurable file patterns! You can use it with:
+
+- Configuration files: `config.json`, `settings.yaml`, `app.properties`
+- Environment files: `.env`, `.env.local`, `development.env`
+- Custom config files: `secrets.txt`, `api-keys.conf`
+
+Simply configure the `camouflage.files.patterns` setting with the file patterns you want to support.
+
+### Example Configuration
+
+```json
+{
+  "camouflage.files.patterns": [
+    "*.env",          // Any .env files
+    ".env*",          // Any files starting with .env
+    "config.*",       // Any config files
+    "*.conf",         // Any .conf files
+    "secrets*",       // Any files starting with "secrets"
+    "api-keys.json"   // Specific file name
+  ]
+}
+```
+
 ## Configuration
 
 Access settings through:
@@ -95,7 +120,7 @@ Access settings through:
 
 #### Files
 
-- `camouflage.files.patterns`: File patterns to apply hiding (e.g., .env, .env.local)
+- `camouflage.files.patterns`: File patterns to apply hiding (supports glob patterns like `*.env`, `.env*`, `config.*`, etc.)
 
 #### Appearance
 
