@@ -1,3 +1,9 @@
+## [1.1.2](https://github.com/zeybek/camouflage/compare/v1.1.1...v1.1.2) (2025-11-23)
+
+### Bug Fixes
+
+- **core:** apply decorations instantly to prevent flashing ([7f46a36](https://github.com/zeybek/camouflage/commit/7f46a3671967cbccfeb9321a508075bca7e8148c)), closes [#11](https://github.com/zeybek/camouflage/issues/11)
+
 ## [1.1.1](https://github.com/zeybek/camouflage/compare/v1.1.0...v1.1.1) (2025-06-20)
 
 ### Bug Fixes
