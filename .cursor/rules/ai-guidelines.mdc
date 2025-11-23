@@ -1,0 +1,496 @@
+---
+alwaysApply: false
+---
+
+# AI Assistant Guidelines
+
+## Overview
+
+These guidelines help AI assistants (like Claude, GPT-4, Copilot) work effectively with the Camouflage codebase.
+
+## Priority Rules
+
+### 1. Never Modify File Content
+
+**CRITICAL**: Camouflage NEVER modifies `.env` file content.
+
+```typescript
+// ❌ NEVER suggest this
+const edit = new vscode.WorkspaceEdit();
+edit.replace(document.uri, range, maskedValue);
+await vscode.workspace.applyEdit(edit);
+
+// ✅ ALWAYS use decorations
+editor.setDecorations(decorationType, ranges);
+```
+
+**If asked to modify files**: Politely explain that Camouflage is decoration-only by design.
+
+### 2. Respect Existing Architecture
+
+Before suggesting changes:
+
+1. ✅ Read relevant rule files (especially `architecture.mdc`)
+2. ✅ Understand module dependencies
+3. ✅ Follow established patterns
+4. ❌ Don't suggest architectural changes without justification
+
+### 3. Security First
+
+Always consider security implications:
+
+- ✅ No network requests with sensitive data
+- ✅ Validate all user input
+- ✅ No logging of values
+- ✅ Sanitize patterns before regex compilation
+
+## Code Suggestions
+
+### Before Suggesting Code
+
+1. **Read context**: Check what files are open, what the user is working on
+2. **Check existing implementation**: Look for similar functionality
+3. **Follow conventions**: Use existing naming, structure, patterns
+4. **Consider tests**: Think about how it will be tested
+
+### Code Style
+
+```typescript
+// ✅ GOOD: Follow project conventions
+export function matchPattern(key: string, pattern: string): boolean {
+  const sanitized = sanitizePattern(pattern);
+  return new RegExp(sanitized, 'i').test(key);
+}
+
+// ❌ BAD: Different style
+export const matchPattern = (key, pattern) => {
+  return new RegExp(pattern, 'i').test(key);
+};
+```
+
+### Imports
+
+Always use existing import structure:
+
+```typescript
+// ✅ GOOD: Project convention
+import * as vscode from 'vscode';
+import { generateHiddenText } from '../lib/text-generator';
+import * as config from '../utils/config';
+
+// ❌ BAD: Different convention
+import vscode = require('vscode');
+const { generateHiddenText } = require('../lib/text-generator');
+```
+
+## Responding to Requests
+
+### Adding Features
+
+When asked to add a feature:
+
+1. **Clarify requirements**:
+
+   - What problem does it solve?
+   - How should it behave?
+   - What edge cases exist?
+
+2. **Propose approach**:
+
+   - Where should code go?
+   - What files need changes?
+   - Any architectural concerns?
+
+3. **Consider impacts**:
+
+   - Breaking changes?
+   - Performance impact?
+   - Security implications?
+   - Testing requirements?
+
+4. **Provide implementation**:
+   - Follow coding standards
+   - Include tests
+   - Update documentation
+
+### Example: Adding New Hiding Style
+
+**User**: "Add a rainbow hiding style"
+
+**AI Response**:
+
+```
+I'll help you add a rainbow hiding style. Here's the approach:
+
+1. **Update package.json**: Add 'rainbow' to hiddenTextStyle enum
+2. **Update text-generator.ts**: Implement rainbow transformation
+3. **Add tests**: Test the new style
+4. **Update README**: Document new feature
+
+Here's the implementation:
+
+[Code for package.json]
+[Code for text-generator.ts]
+[Code for tests]
+[Documentation update]
+
+This follows the Strategy pattern already used for hiding styles.
+Want me to proceed with implementation?
+```
+
+### Debugging
+
+When helping debug:
+
+1. **Understand the problem**:
+
+   - What's the expected behavior?
+   - What's actually happening?
+   - When does it occur?
+
+2. **Check common issues**:
+
+   - Is extension activated?
+   - Is file recognized as `.env`?
+   - Are decorations being applied?
+   - Any console errors?
+
+3. **Suggest investigation**:
+
+   - Add logging
+   - Check configuration
+   - Review event listeners
+
+4. **Provide fix**:
+   - Explain root cause
+   - Show fix with explanation
+   - Suggest test to prevent regression
+
+### Refactoring
+
+When suggesting refactoring:
+
+1. **Explain why**: What's improved?
+2. **Show before/after**: Clear comparison
+3. **Preserve behavior**: No functional changes
+4. **Update tests**: Ensure they still pass
+
+```
+I suggest extracting this pattern matching logic into a separate function:
+
+Before:
+[Current code]
+
+After:
+[Refactored code]
+
+Benefits:
+- More testable
+- Reusable
+- Clearer responsibility
+
+This follows the Single Responsibility Principle outlined in patterns.mdc.
+```
+
+## Testing Guidance
+
+### Always Consider Tests
+
+When suggesting code changes:
+
+```typescript
+// Suggest implementation
+export function newFeature(input: string): string {
+  return transform(input);
+}
+
+// ALSO suggest test
+describe('newFeature', () => {
+  it('should transform input correctly', () => {
+    expect(newFeature('test')).toBe('expected');
+  });
+
+  it('should handle empty string', () => {
+    expect(newFeature('')).toBe('');
+  });
+});
+```
+
+### Test Patterns
+
+Follow AAA pattern:
+
+```typescript
+it('should mask sensitive values', () => {
+  // Arrange
+  const input = 'API_KEY=secret';
+  const style: HiddenTextStyle = 'stars';
+
+  // Act
+  const result = maskValue(input, style);
+
+  // Assert
+  expect(result).toBe('API_KEY=******');
+});
+```
+
+## Documentation
+
+### Update Documentation
+
+When adding/changing features:
+
+1. ✅ Update README if user-facing
+2. ✅ Update CHANGELOG (or note that semantic-release handles it)
+3. ✅ Add JSDoc for public APIs
+4. ✅ Update relevant rule files if patterns change
+
+### Code Comments
+
+```typescript
+// ✅ GOOD: Explain WHY
+// Debounce to prevent excessive updates during rapid typing
+@Debounce(100)
+private updateDecorations(): void { }
+
+// ❌ BAD: Explain WHAT (code already shows this)
+// This function updates decorations
+private updateDecorations(): void { }
+```
+
+## Common Pitfalls
+
+### 1. Over-Engineering
+
+```typescript
+// ❌ BAD: Over-engineered for simple task
+class PatternMatcherFactory {
+  createMatcher(type: string): PatternMatcher {
+    return new ConcretePatternMatcher(
+      new PatternValidator(),
+      new PatternNormalizer(),
+      new CacheManager()
+    );
+  }
+}
+
+// ✅ GOOD: Simple when sufficient
+function matchPattern(key: string, pattern: string): boolean {
+  return new RegExp(pattern, 'i').test(key);
+}
+```
+
+### 2. Ignoring Existing Code
+
+❌ Don't suggest:
+
+```typescript
+// Creating new utility when one exists
+export function checkIfEnvFile(path: string): boolean {}
+
+// When file-utils.ts already has:
+export function isEnvFile(fileName: string): boolean {}
+```
+
+### 3. Breaking Changes Without Warning
+
+❌ Don't suggest:
+
+```typescript
+// Breaking change to public API
+export function matchPattern(key: string, patterns: RegExp[]): boolean {}
+// Changed from string[] to RegExp[]!
+```
+
+✅ Instead:
+
+```
+This change would break the public API. Options:
+
+1. Add new function: matchPatternWithRegex()
+2. Make it backward compatible with overloads
+3. Make it a major version bump with migration guide
+
+Recommend option 1 for backward compatibility.
+```
+
+## Questions to Ask
+
+When uncertain, ask:
+
+- "Is this a breaking change?"
+- "Should this be configurable?"
+- "What about edge cases like...?"
+- "How should this behave when...?"
+- "Should I update tests/docs?"
+
+## Error Messages
+
+### User-Friendly
+
+```typescript
+// ✅ GOOD: Helpful error
+throw new Error(
+  'Pattern "' + pattern + '" is invalid. ' + 'Use alphanumeric characters and wildcards (*) only.'
+);
+
+// ❌ BAD: Technical error
+throw new Error('RegExp compilation failed: invalid syntax');
+```
+
+### In Suggestions
+
+```typescript
+// ✅ GOOD: Handle errors gracefully
+try {
+  await riskyOperation();
+} catch (error) {
+  console.error('[Camouflage] Operation failed:', error);
+  vscode.window.showErrorMessage('Operation failed. Check output for details.');
+}
+
+// ❌ BAD: Let errors crash
+await riskyOperation(); // No error handling!
+```
+
+## Performance
+
+### Always Consider Performance
+
+```typescript
+// ❌ BAD: Suggest inefficient approach
+vscode.workspace.onDidChangeTextDocument(() => {
+  // Called on every keystroke!
+  this.recompileAllPatterns();
+  this.updateAllDecorations();
+  this.rebuildCache();
+});
+
+// ✅ GOOD: Suggest optimized approach
+@Debounce(100)
+private onDocumentChange(): void {
+  // Called max once per 100ms
+  this.updateDecorations();
+}
+```
+
+## Communication Style
+
+### Be Clear and Concise
+
+❌ Verbose:
+
+```
+So what we're going to do here is we're going to create a function that
+will take a string as input and then it will process that string by first
+checking if it's empty and if it's not empty then we'll...
+```
+
+✅ Clear:
+
+```
+I'll create a function to process the string:
+
+1. Validate input (non-empty)
+2. Transform text
+3. Return result
+
+Here's the implementation:
+[code]
+```
+
+### Explain Decisions
+
+```
+I'm using the Strategy pattern here (see patterns.mdc) because:
+1. Easy to add new hiding styles
+2. Each style is independently testable
+3. No if/else chains
+
+Alternative approach would be a switch statement, but that violates
+Open/Closed principle.
+```
+
+## Checklist for Suggestions
+
+Before suggesting code:
+
+- [ ] Follows project architecture
+- [ ] Uses existing patterns/conventions
+- [ ] Includes error handling
+- [ ] Has tests (or explanation why not)
+- [ ] Considers performance
+- [ ] Respects security guidelines
+- [ ] Updates documentation if needed
+- [ ] No breaking changes (or clearly marked)
+- [ ] Explains WHY, not just WHAT
+
+## Learning from Feedback
+
+When user corrects you:
+
+1. ✅ Acknowledge the correction
+2. ✅ Understand why it's better
+3. ✅ Apply that learning to future suggestions
+4. ❌ Don't repeat the same mistake
+
+Example:
+
+```
+User: "Don't use eval, it's a security risk"
+
+AI: You're absolutely right. I should have checked security.mdc which
+explicitly forbids eval(). Let me revise using safe RegExp compilation:
+
+[Corrected code]
+
+I'll remember to avoid eval() and check security implications first.
+```
+
+## When to Push Back
+
+Politely push back if user requests:
+
+1. **Security violations**:
+   "That would expose sensitive data. Instead, let me suggest..."
+
+2. **Anti-patterns**:
+   "That could lead to [problem]. A better approach would be..."
+
+3. **Breaking architectural rules**:
+   "That would violate the module dependency rules in architecture.mdc.
+   How about this alternative..."
+
+4. **File modification**:
+   "Camouflage never modifies file content by design. We can achieve
+   this with decorations instead..."
+
+Always explain WHY and offer alternatives.
+
+## Final Notes
+
+### Project Philosophy
+
+Remember:
+
+- **Never modify files** - Visual only
+- **Security first** - No data leaks
+- **User experience** - Fast and intuitive
+- **Maintainability** - Clean, tested code
+- **Open source** - Anyone should understand it
+
+### When in Doubt
+
+1. Check the rules (`.cursor/rules/*.mdc`)
+2. Look at existing code
+3. Ask clarifying questions
+4. Suggest options, not dictates
+
+### Goal
+
+Help users improve Camouflage while maintaining:
+
+- ✅ Code quality
+- ✅ Security
+- ✅ Architectural integrity
+- ✅ User trust

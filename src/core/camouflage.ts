@@ -19,6 +19,10 @@ export class Camouflage {
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.updateStatusBarItem();
     this.updateDecorationType();
+
+    if (this.activeEditor && isEnvFile(this.activeEditor.document.fileName)) {
+      this.updateDecorations();
+    }
   }
 
   /**

@@ -1,0 +1,545 @@
+---
+alwaysApply: false
+---
+
+# Security and Privacy Guidelines
+
+## Core Security Principles
+
+### 1. Never Modify File Content
+
+**Critical**: Camouflage is a visual-only tool.
+
+```typescript
+// ✅ GOOD: Visual decoration only
+editor.setDecorations(decorationType, ranges);
+
+// ❌ BAD: Modifying file content
+const edit = new vscode.WorkspaceEdit();
+edit.replace(document.uri, range, maskedValue);
+await vscode.workspace.applyEdit(edit); // NEVER DO THIS!
+```
+
+**Why**: Users trust that their `.env` files are never altered. Breaking this trust would be catastrophic.
+
+### 2. All Processing is Local
+
+```typescript
+// ✅ GOOD: Local processing
+function maskValue(value: string): string {
+  return generateHiddenText(value, style);
+}
+
+// ❌ BAD: Sending data to server
+async function maskValue(value: string): Promise<string> {
+  const response = await fetch('https://api.example.com/mask', {
+    body: JSON.stringify({ value }), // NEVER send sensitive data!
+  });
+  return response.text();
+}
+```
+
+**Why**: Environment variables contain sensitive secrets (API keys, passwords, tokens). Network requests expose this data.
+
+### 3. No Telemetry for Sensitive Data
+
+```typescript
+// ✅ GOOD: Anonymous metrics only
+if (vscode.env.isTelemetryEnabled) {
+  telemetry.send('extension.activated', {
+    hidingStyle: config.getHidingStyle(), // OK: no sensitive data
+  });
+}
+
+// ❌ BAD: Sending sensitive data
+telemetry.send('value.hidden', {
+  key: 'API_KEY', // ❌ Exposes key names
+  value: 'abc123', // ❌ Exposes values!
+  fileName: document.fileName, // ❌ Exposes paths
+});
+```
+
+**Rules**:
+
+- ✅ Respect `vscode.env.isTelemetryEnabled`
+- ✅ Only send aggregated, anonymous data
+- ❌ Never send key names
+- ❌ Never send values (even masked)
+- ❌ Never send file paths
+- ❌ Never send patterns
+
+### 4. Secure Pattern Matching
+
+```typescript
+// ✅ GOOD: Validated regex patterns
+function compilePattern(pattern: string): RegExp {
+  // Escape special characters
+  const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Convert wildcards
+  const regexPattern = escaped.replace(/\\\*/g, '.*');
+
+  // Compile with timeout protection
+  try {
+    return new RegExp(regexPattern, 'i');
+  } catch (error) {
+    throw new Error(`Invalid pattern: ${pattern}`);
+  }
+}
+
+// ❌ BAD: Direct regex from user input
+function compilePattern(pattern: string): RegExp {
+  return new RegExp(pattern, 'i'); // ReDoS vulnerability!
+}
+```
+
+**Why**: User-provided regex can cause ReDoS (Regular Expression Denial of Service) attacks.
+
+## Data Handling
+
+### Environment Variable Values
+
+```typescript
+// ✅ GOOD: Never log values
+console.log('[Camouflage] Hiding value at line', lineNumber);
+
+// ❌ BAD: Logging sensitive data
+console.log('[Camouflage] Hiding value:', value); // Logged to file!
+```
+
+### Pattern Matching
+
+```typescript
+// ✅ GOOD: Case-insensitive, sanitized
+function matchesPattern(key: string, patterns: string[]): boolean {
+  return patterns.some((pattern) => {
+    const sanitized = sanitizePattern(pattern);
+    return new RegExp(sanitized, 'i').test(key);
+  });
+}
+
+// ❌ BAD: Direct pattern matching
+function matchesPattern(key: string, patterns: string[]): boolean {
+  return patterns.some((pattern) => {
+    return eval(`/${pattern}/i`).test(key); // Code injection!
+  });
+}
+```
+
+### File System Access
+
+```typescript
+// ✅ GOOD: Read-only access
+function isEnvFile(fileName: string): boolean {
+  return ENV_PATTERNS.some((pattern) => fileName.endsWith(pattern));
+}
+
+// ❌ BAD: Writing to file system
+function backupEnvFile(fileName: string): void {
+  const content = fs.readFileSync(fileName);
+  fs.writeFileSync(fileName + '.bak', content); // Unnecessary file access!
+}
+```
+
+## Privacy Protection
+
+### Configuration Storage
+
+```typescript
+// ✅ GOOD: Store in VS Code settings
+const config = vscode.workspace.getConfiguration('camouflage');
+await config.update('patterns', patterns, vscode.ConfigurationTarget.Global);
+
+// ❌ BAD: Store in external file
+fs.writeFileSync(path.join(os.homedir(), '.camouflage-config'), JSON.stringify({ patterns }));
+```
+
+### Workspace Scope
+
+```typescript
+// ✅ GOOD: Respect workspace boundaries
+function getEnvFiles(): vscode.Uri[] {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders) return [];
+
+  return vscode.workspace.findFiles('**/.env*', '**/node_modules/**');
+}
+
+// ❌ BAD: Access files outside workspace
+function getEnvFiles(): string[] {
+  return glob.sync('**/.env*', {
+    cwd: os.homedir(), // Accesses user's entire home directory!
+  });
+}
+```
+
+### User Consent
+
+```typescript
+// ✅ GOOD: Ask before destructive actions
+async function resetConfiguration(): Promise<void> {
+  const response = await vscode.window.showWarningMessage(
+    'Reset all Camouflage settings to defaults?',
+    { modal: true },
+    'Reset',
+    'Cancel'
+  );
+
+  if (response === 'Reset') {
+    await config.reset();
+  }
+}
+
+// ❌ BAD: No confirmation
+async function resetConfiguration(): Promise<void> {
+  await config.reset(); // No warning!
+}
+```
+
+## Input Validation
+
+### Pattern Input
+
+```typescript
+// ✅ GOOD: Validate and sanitize
+function addPattern(pattern: string): void {
+  // Validate format
+  if (!/^[a-zA-Z0-9*_-]+$/.test(pattern)) {
+    throw new Error('Pattern contains invalid characters');
+  }
+
+  // Check length
+  if (pattern.length > 100) {
+    throw new Error('Pattern too long (max 100 characters)');
+  }
+
+  // Sanitize
+  const sanitized = pattern.trim().toLowerCase();
+
+  patterns.push(sanitized);
+}
+
+// ❌ BAD: No validation
+function addPattern(pattern: string): void {
+  patterns.push(pattern); // Could be malicious!
+}
+```
+
+### Configuration Values
+
+```typescript
+// ✅ GOOD: Validate configuration
+function validateConfig(config: unknown): CamouflageConfig {
+  if (typeof config !== 'object' || config === null) {
+    throw new Error('Invalid config format');
+  }
+
+  const { enabled, hiddenTextStyle, patterns } = config as any;
+
+  if (typeof enabled !== 'boolean') {
+    throw new Error('enabled must be boolean');
+  }
+
+  if (!VALID_STYLES.includes(hiddenTextStyle)) {
+    throw new Error(`Invalid style: ${hiddenTextStyle}`);
+  }
+
+  if (!Array.isArray(patterns)) {
+    throw new Error('patterns must be array');
+  }
+
+  return { enabled, hiddenTextStyle, patterns };
+}
+
+// ❌ BAD: Trust configuration
+function loadConfig(config: any): void {
+  this.enabled = config.enabled; // No validation!
+  this.style = config.hiddenTextStyle;
+  this.patterns = config.patterns;
+}
+```
+
+## Error Handling Security
+
+### Don't Leak Information in Errors
+
+```typescript
+// ✅ GOOD: Generic error messages
+try {
+  const content = fs.readFileSync(filePath, 'utf8');
+} catch (error) {
+  console.error('[Camouflage] Failed to read file');
+  vscode.window.showErrorMessage('Failed to read .env file');
+}
+
+// ❌ BAD: Detailed error messages
+try {
+  const content = fs.readFileSync(filePath, 'utf8');
+} catch (error) {
+  vscode.window.showErrorMessage(
+    `Failed to read ${filePath}: ${error}` // Exposes file path!
+  );
+}
+```
+
+### Fail Securely
+
+```typescript
+// ✅ GOOD: Fail closed (hide by default)
+function shouldHideValue(key: string): boolean {
+  try {
+    return matchesAnyPattern(key, patterns);
+  } catch (error) {
+    console.error('Pattern matching failed, hiding by default');
+    return true; // Hide on error (secure default)
+  }
+}
+
+// ❌ BAD: Fail open (show by default)
+function shouldHideValue(key: string): boolean {
+  try {
+    return matchesAnyPattern(key, patterns);
+  } catch (error) {
+    return false; // Show on error (insecure!)
+  }
+}
+```
+
+## Dependency Security
+
+### Audit Dependencies
+
+```bash
+# Regular security audits
+npm audit
+
+# Fix vulnerabilities
+npm audit fix
+
+# Check for updates
+npm outdated
+```
+
+### Minimize Dependencies
+
+```json
+// ✅ GOOD: Minimal dependencies
+"dependencies": {}
+
+// ❌ BAD: Unnecessary dependencies
+"dependencies": {
+  "lodash": "^4.17.21", // Do we really need this?
+  "axios": "^1.0.0", // Making network requests? Why?
+  "fs-extra": "^11.0.0" // Node's fs is sufficient
+}
+```
+
+### Pin Dependency Versions
+
+```json
+// ✅ GOOD: Exact versions
+"devDependencies": {
+  "@types/vscode": "1.70.0",
+  "typescript": "5.0.0"
+}
+
+// ❌ BAD: Loose versions
+"devDependencies": {
+  "@types/vscode": "^1.70.0", // Could auto-update with breaking changes
+  "typescript": "*" // Dangerous!
+}
+```
+
+## Code Security
+
+### Avoid eval() and Function()
+
+```typescript
+// ❌ BAD: Code injection vulnerability
+function applyPattern(pattern: string, key: string): boolean {
+  return eval(`/${pattern}/i.test("${key}")`); // Code injection!
+}
+
+// ✅ GOOD: Safe regex compilation
+function applyPattern(pattern: string, key: string): boolean {
+  const sanitized = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(sanitized, 'i').test(key);
+}
+```
+
+### Avoid Dynamic Imports of User Data
+
+```typescript
+// ❌ BAD: Dynamic import from user input
+async function loadPlugin(pluginName: string): Promise<void> {
+  const plugin = await import(pluginName); // Arbitrary code execution!
+  plugin.initialize();
+}
+
+// ✅ GOOD: Whitelist of allowed plugins
+const ALLOWED_PLUGINS = ['plugin-a', 'plugin-b'];
+
+async function loadPlugin(pluginName: string): Promise<void> {
+  if (!ALLOWED_PLUGINS.includes(pluginName)) {
+    throw new Error('Plugin not allowed');
+  }
+
+  const plugin = await import(`./plugins/${pluginName}`);
+  plugin.initialize();
+}
+```
+
+### Sanitize HTML (if using WebView)
+
+```typescript
+// ✅ GOOD: Sanitize HTML
+function getWebviewContent(userInput: string): string {
+  const sanitized = userInput
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  return `<html><body>${sanitized}</body></html>`;
+}
+
+// ❌ BAD: Direct HTML injection
+function getWebviewContent(userInput: string): string {
+  return `<html><body>${userInput}</body></html>`; // XSS vulnerability!
+}
+```
+
+## Security Checklist
+
+Before each release:
+
+- [ ] No sensitive data in logs
+- [ ] No network requests with user data
+- [ ] All user input validated
+- [ ] Error messages don't leak information
+- [ ] Dependencies audited (`npm audit`)
+- [ ] No eval() or Function()
+- [ ] File access limited to workspace
+- [ ] Patterns sanitized before use
+- [ ] Telemetry respects user settings
+- [ ] No file modifications
+- [ ] All resources properly disposed
+- [ ] TypeScript strict mode enabled
+- [ ] Code review completed
+- [ ] Security-focused testing done
+
+## Responsible Disclosure
+
+If a security vulnerability is found:
+
+1. **Don't** open a public GitHub issue
+2. **Do** email maintainers privately
+3. Allow time for fix (90 days)
+4. Credit reporter in release notes
+
+### Reporting Template
+
+```
+Subject: [SECURITY] Vulnerability in Camouflage
+
+Description:
+[Detailed description of vulnerability]
+
+Steps to Reproduce:
+1. [Step 1]
+2. [Step 2]
+3. [Step 3]
+
+Impact:
+[What could an attacker do?]
+
+Suggested Fix:
+[Optional: How to fix it]
+```
+
+## Compliance
+
+### GDPR Compliance
+
+- ✅ No personal data collected
+- ✅ No data transferred outside device
+- ✅ User controls all configuration
+- ✅ Right to deletion (uninstall)
+- ✅ Transparent processing (open source)
+
+### VS Code Marketplace Requirements
+
+- ✅ No obfuscated code
+- ✅ No unauthorized data collection
+- ✅ Privacy policy (if any data collected)
+- ✅ Clear permission explanations
+- ✅ Respect marketplace guidelines
+
+## Security Patterns
+
+### Principle of Least Privilege
+
+```typescript
+// ✅ GOOD: Only access what's needed
+function decorateCurrentEditor(): void {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || !isEnvFile(editor.document.fileName)) {
+    return;
+  }
+  applyDecorations(editor);
+}
+
+// ❌ BAD: Access all editors
+function decorateAllEditors(): void {
+  vscode.window.visibleTextEditors.forEach((editor) => {
+    applyDecorations(editor); // Accesses non-.env files too!
+  });
+}
+```
+
+### Defense in Depth
+
+Multiple layers of validation:
+
+```typescript
+// Layer 1: Type checking
+function addPattern(pattern: unknown): void {
+  if (typeof pattern !== 'string') {
+    throw new TypeError('Pattern must be string');
+  }
+
+  // Layer 2: Format validation
+  if (!/^[a-zA-Z0-9*_-]+$/.test(pattern)) {
+    throw new Error('Invalid pattern format');
+  }
+
+  // Layer 3: Length validation
+  if (pattern.length > 100) {
+    throw new Error('Pattern too long');
+  }
+
+  // Layer 4: Sanitization
+  const sanitized = pattern.trim().toLowerCase();
+
+  // Layer 5: Safe storage
+  patterns.push(sanitized);
+}
+```
+
+### Secure by Default
+
+```typescript
+// ✅ GOOD: Secure defaults
+const DEFAULT_CONFIG: CamouflageConfig = {
+  enabled: true, // Hide by default (secure)
+  selectiveHiding: false, // Hide all by default (secure)
+  patterns: [], // Empty patterns (secure)
+};
+
+// ❌ BAD: Insecure defaults
+const DEFAULT_CONFIG: CamouflageConfig = {
+  enabled: false, // Show by default (insecure!)
+  allowExternalPatterns: true, // Allow untrusted patterns (insecure!)
+};
+```

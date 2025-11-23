@@ -1,0 +1,709 @@
+---
+alwaysApply: false
+---
+
+# VS Code Extension Development Rules
+
+## Extension Lifecycle
+
+### Activation
+
+The extension activates when specified events occur (defined in `package.json`):
+
+```json
+"activationEvents": [
+  "onLanguage:dotenv",
+  "onCommand:camouflage.toggle"
+]
+```
+
+**Rules**:
+
+- ✅ Activate only when needed (lazy loading)
+- ✅ Keep activation time < 200ms
+- ❌ Don't activate on `*` (every file)
+- ❌ Don't do heavy work in `activate()`
+
+### Activation Function
+
+```typescript
+export function activate(context: vscode.ExtensionContext): void {
+  // 1. Initialize lightweight components first
+  const camouflage = new Camouflage();
+
+  // 2. Register commands
+  const toggleCommand = vscode.commands.registerCommand('camouflage.toggle', () =>
+    camouflage.toggle()
+  );
+
+  // 3. Register all disposables
+  context.subscriptions.push(toggleCommand, camouflage);
+
+  // 4. Start extension
+  camouflage.initialize(context);
+}
+```
+
+### Deactivation
+
+```typescript
+export function deactivate(): void {
+  // Dispose resources not in context.subscriptions
+  // Usually not needed if everything is properly registered
+}
+```
+
+## VS Code API Usage
+
+### Window API
+
+```typescript
+// ✅ GOOD: Check for active editor
+const editor = vscode.window.activeTextEditor;
+if (editor) {
+  // Work with editor
+}
+
+// ❌ BAD: Assume editor exists
+const editor = vscode.window.activeTextEditor!;
+editor.document.getText(); // Crash if no editor!
+
+// Status bar
+const statusBar = vscode.window.createStatusBarItem(
+  vscode.StatusBarAlignment.Right,
+  100 // Priority
+);
+context.subscriptions.push(statusBar); // Always dispose!
+
+// Messages
+vscode.window.showInformationMessage('Success!');
+vscode.window.showWarningMessage('Warning!');
+vscode.window.showErrorMessage('Error!');
+```
+
+### Workspace API
+
+```typescript
+// Configuration
+const config = vscode.workspace.getConfiguration('camouflage');
+const isEnabled = config.get<boolean>('enabled', true);
+
+// Update configuration
+await config.update('enabled', false, vscode.ConfigurationTarget.Global);
+
+// File system
+const files = await vscode.workspace.findFiles('**/.env', '**/node_modules/**');
+
+// Text documents
+vscode.workspace.textDocuments.forEach((doc) => {
+  // Process each open document
+});
+```
+
+### Commands API
+
+```typescript
+// Register command
+const disposable = vscode.commands.registerCommand('camouflage.toggle', async () => {
+  // Command implementation
+  await toggle();
+});
+
+// Execute existing command
+await vscode.commands.executeCommand('workbench.action.reloadWindow');
+
+// Pass arguments
+await vscode.commands.executeCommand('editor.action.insertSnippet', {
+  snippet: 'API_KEY=${1:value}',
+});
+```
+
+### TextEditor Decorations
+
+```typescript
+// Create decoration type
+const decorationType = vscode.window.createTextEditorDecorationType({
+  color: '#FF0000',
+  backgroundColor: '#00000000',
+  letterSpacing: '-0.5em',
+  opacity: '0',
+  textDecoration: 'none; font-size: 0;',
+});
+
+// Apply decorations
+const ranges = [new vscode.Range(0, 10, 0, 20)];
+editor.setDecorations(decorationType, ranges);
+
+// Clear decorations
+editor.setDecorations(decorationType, []);
+
+// Dispose when done
+decorationType.dispose();
+```
+
+## Event Handling
+
+### Document Events
+
+```typescript
+// Text document changes (debounce this!)
+vscode.workspace.onDidChangeTextDocument((event) => {
+  if (event.document === vscode.window.activeTextEditor?.document) {
+    updateDecorations();
+  }
+});
+
+// Editor selection changes
+vscode.window.onDidChangeActiveTextEditor((editor) => {
+  if (editor && isEnvFile(editor.document.fileName)) {
+    updateDecorations();
+  }
+});
+
+// Configuration changes
+vscode.workspace.onDidChangeConfiguration((event) => {
+  if (event.affectsConfiguration('camouflage')) {
+    reloadConfiguration();
+  }
+});
+```
+
+### Event Disposal
+
+```typescript
+// ✅ GOOD: Register for automatic disposal
+const disposable = vscode.workspace.onDidChangeTextDocument(handler);
+context.subscriptions.push(disposable);
+
+// ❌ BAD: Never disposed
+vscode.workspace.onDidChangeTextDocument(handler); // Memory leak!
+```
+
+## Performance Best Practices
+
+### Debounce Frequent Events
+
+```typescript
+// ✅ GOOD: Debounce text changes
+@Debounce(100)
+private updateDecorations(): void {
+  // Called max once per 100ms
+}
+
+vscode.workspace.onDidChangeTextDocument(() => {
+  this.updateDecorations();
+});
+
+// ❌ BAD: No debouncing
+vscode.workspace.onDidChangeTextDocument(() => {
+  this.updateDecorations(); // Called on EVERY keystroke!
+});
+```
+
+### Cache Expensive Operations
+
+```typescript
+// ✅ GOOD: Cache decoration type
+private decorationType?: vscode.TextEditorDecorationType;
+
+private getDecorationType(): vscode.TextEditorDecorationType {
+  if (!this.decorationType) {
+    this.decorationType = vscode.window.createTextEditorDecorationType({
+      // ... decoration config
+    });
+  }
+  return this.decorationType;
+}
+
+// ❌ BAD: Create new decoration type every time
+private getDecorationType(): vscode.TextEditorDecorationType {
+  return vscode.window.createTextEditorDecorationType({
+    // ... decoration config
+  }); // Creates new object every call!
+}
+```
+
+### Minimize DOM Operations
+
+```typescript
+// ✅ GOOD: Batch decoration updates
+const allRanges = getAllRangesToDecorate();
+editor.setDecorations(decorationType, allRanges);
+
+// ❌ BAD: Multiple separate updates
+ranges.forEach((range) => {
+  editor.setDecorations(decorationType, [range]); // Multiple redraws!
+});
+```
+
+### Lazy Loading
+
+```typescript
+// ✅ GOOD: Load only when needed
+let heavyModule: HeavyModule | undefined;
+
+async function getHeavyModule(): Promise<HeavyModule> {
+  if (!heavyModule) {
+    heavyModule = await import('./heavy-module');
+  }
+  return heavyModule;
+}
+
+// ❌ BAD: Load everything on activation
+import { HeavyModule } from './heavy-module'; // Loaded even if never used
+```
+
+## Configuration Schema
+
+### Define in package.json
+
+```json
+"contributes": {
+  "configuration": {
+    "title": "Camouflage",
+    "properties": {
+      "camouflage.enabled": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable or disable the extension",
+        "order": 1
+      },
+      "camouflage.hiddenTextStyle": {
+        "type": "string",
+        "enum": ["text", "dotted", "stars", "scramble"],
+        "default": "text",
+        "description": "Style for hiding sensitive values",
+        "order": 2
+      },
+      "camouflage.selectiveHiding.enabled": {
+        "type": "boolean",
+        "default": false,
+        "markdownDescription": "Hide only values matching patterns in `#camouflage.selectiveHiding.patterns#`",
+        "order": 3
+      }
+    }
+  }
+}
+```
+
+### Access Configuration
+
+```typescript
+// Get single value
+const isEnabled = vscode.workspace.getConfiguration('camouflage').get<boolean>('enabled', true); // default value
+
+// Get nested value
+const patterns = vscode.workspace
+  .getConfiguration('camouflage')
+  .get<string[]>('selectiveHiding.patterns', []);
+
+// Listen for changes
+vscode.workspace.onDidChangeConfiguration((event) => {
+  if (event.affectsConfiguration('camouflage.enabled')) {
+    // Reload extension state
+  }
+});
+```
+
+## Commands
+
+### Define in package.json
+
+```json
+"contributes": {
+  "commands": [
+    {
+      "command": "camouflage.toggle",
+      "title": "Camouflage: Toggle Masking",
+      "category": "Camouflage"
+    }
+  ],
+  "keybindings": [
+    {
+      "command": "camouflage.toggle",
+      "key": "ctrl+shift+h",
+      "mac": "cmd+shift+h",
+      "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+    }
+  ],
+  "menus": {
+    "editor/context": [
+      {
+        "command": "camouflage.toggle",
+        "when": "resourceFilename =~ /.*env.*/",
+        "group": "camouflage"
+      }
+    ]
+  }
+}
+```
+
+### Implement Commands
+
+```typescript
+// Simple command
+vscode.commands.registerCommand('camouflage.toggle', () => {
+  toggle();
+});
+
+// Async command with error handling
+vscode.commands.registerCommand('camouflage.reload', async () => {
+  try {
+    await reloadConfiguration();
+    vscode.window.showInformationMessage('Configuration reloaded');
+  } catch (error) {
+    vscode.window.showErrorMessage(`Failed to reload: ${error}`);
+  }
+});
+
+// Command with arguments
+vscode.commands.registerCommand('camouflage.setStyle', (style: HiddenTextStyle) => {
+  setHidingStyle(style);
+});
+```
+
+## Context Keys and When Clauses
+
+### Set Context
+
+```typescript
+// Set custom context
+vscode.commands.executeCommand(
+  'setContext',
+  'camouflage.isEnabled',
+  true
+);
+
+// Use in package.json when clause
+{
+  "command": "camouflage.disable",
+  "when": "camouflage.isEnabled"
+}
+```
+
+### Built-in When Clauses
+
+Common conditions:
+
+- `editorTextFocus`: Editor has focus
+- `resourceFilename =~ /regex/`: File name matches
+- `editorLangId == 'dotenv'`: Language ID matches
+- `!editorReadonly`: Editor is writable
+
+Combine conditions:
+
+- `&&`: AND
+- `||`: OR
+- `!`: NOT
+
+```json
+"when": "editorTextFocus && resourceFilename =~ /.*env.*/ && !editorReadonly"
+```
+
+## Testing Extensions
+
+### Extension Test Runner
+
+```typescript
+// src/__tests__/suite/extension.test.ts
+import * as vscode from 'vscode';
+import * as assert from 'assert';
+
+suite('Extension Test Suite', () => {
+  vscode.window.showInformationMessage('Start all tests.');
+
+  test('Extension should be present', () => {
+    assert.ok(vscode.extensions.getExtension('your-publisher.camouflage'));
+  });
+
+  test('Extension should activate', async () => {
+    const ext = vscode.extensions.getExtension('your-publisher.camouflage');
+    await ext?.activate();
+    assert.ok(ext?.isActive);
+  });
+
+  test('Commands should be registered', async () => {
+    const commands = await vscode.commands.getCommands();
+    assert.ok(commands.includes('camouflage.toggle'));
+  });
+});
+```
+
+### Debug Extension
+
+F5 or "Run Extension" in VS Code:
+
+1. Opens Extension Development Host
+2. Extension is loaded
+3. Set breakpoints in source
+4. Debug in main VS Code window
+
+## Publishing
+
+### Prepare for Publishing
+
+```bash
+# Install vsce
+npm install -g @vscode/vsce
+
+# Package extension
+vsce package
+
+# Publish to marketplace
+vsce publish
+```
+
+### Version Management
+
+```json
+// package.json
+{
+  "version": "1.2.3",
+  "publisher": "your-publisher-name",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/camouflage"
+  }
+}
+```
+
+### Extension Manifest
+
+Required fields in `package.json`:
+
+- `name`: Extension ID
+- `displayName`: Human-readable name
+- `description`: Short description
+- `version`: Semantic version
+- `publisher`: Publisher ID
+- `engines.vscode`: VS Code version requirement
+- `categories`: Extension category
+- `activationEvents`: When to activate
+- `main`: Entry point file
+
+### Marketplace Presentation
+
+```json
+{
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "badges": [
+    {
+      "url": "https://img.shields.io/github/workflow/status/user/repo/CI",
+      "href": "https://github.com/user/repo/actions",
+      "description": "Build Status"
+    }
+  ]
+}
+```
+
+## Extension Security
+
+### Never Store Secrets
+
+```typescript
+// ❌ BAD: Hardcoded secrets
+const API_KEY = 'sk_live_abc123';
+
+// ✅ GOOD: Use secure storage
+await context.secrets.store('apiKey', apiKey);
+const apiKey = await context.secrets.get('apiKey');
+```
+
+### Validate User Input
+
+```typescript
+// ✅ GOOD: Validate pattern input
+function addPattern(pattern: string): void {
+  if (!/^[a-zA-Z0-9*_-]+$/.test(pattern)) {
+    throw new Error('Invalid pattern format');
+  }
+  patterns.push(pattern);
+}
+
+// ❌ BAD: No validation
+function addPattern(pattern: string): void {
+  patterns.push(pattern); // Could be malicious regex!
+}
+```
+
+### Sanitize File Paths
+
+```typescript
+// ✅ GOOD: Validate file paths
+import * as path from 'path';
+
+function readEnvFile(filePath: string): string {
+  const normalizedPath = path.normalize(filePath);
+  if (!normalizedPath.startsWith(workspaceRoot)) {
+    throw new Error('Path outside workspace');
+  }
+  return fs.readFileSync(normalizedPath, 'utf8');
+}
+
+// ❌ BAD: No path validation
+function readEnvFile(filePath: string): string {
+  return fs.readFileSync(filePath, 'utf8'); // Path traversal vulnerability!
+}
+```
+
+## Extension Best Practices
+
+### Do's
+
+✅ **Dispose resources properly**
+
+```typescript
+context.subscriptions.push(statusBarItem, decorationType, command, eventListener);
+```
+
+✅ **Handle errors gracefully**
+
+```typescript
+try {
+  await riskyOperation();
+} catch (error) {
+  console.error('Operation failed:', error);
+  vscode.window.showErrorMessage('Operation failed. Check output for details.');
+}
+```
+
+✅ **Provide feedback to users**
+
+```typescript
+await vscode.window.withProgress(
+  {
+    location: vscode.ProgressLocation.Notification,
+    title: 'Processing .env files',
+    cancellable: true,
+  },
+  async (progress, token) => {
+    // Long-running operation
+  }
+);
+```
+
+✅ **Use TypeScript strict mode**
+
+```json
+{
+  "compilerOptions": {
+    "strict": true
+  }
+}
+```
+
+### Don'ts
+
+❌ **Don't block the UI thread**
+
+```typescript
+// ❌ BAD: Synchronous heavy operation
+function processLargeFile(): void {
+  const content = fs.readFileSync(largeFile); // Blocks UI!
+  processContent(content);
+}
+
+// ✅ GOOD: Async with progress
+async function processLargeFile(): Promise<void> {
+  const content = await vscode.workspace.fs.readFile(largeFileUri);
+  await processContent(content);
+}
+```
+
+❌ **Don't mutate VS Code state unexpectedly**
+
+```typescript
+// ❌ BAD: Change user's configuration without asking
+await vscode.workspace.getConfiguration('camouflage').update('enabled', false, true);
+
+// ✅ GOOD: Ask first
+const response = await vscode.window.showQuickPick(['Yes', 'No'], {
+  placeHolder: 'Disable Camouflage?',
+});
+if (response === 'Yes') {
+  await vscode.workspace.getConfiguration('camouflage').update('enabled', false, true);
+}
+```
+
+❌ **Don't ignore telemetry preferences**
+
+```typescript
+// ✅ GOOD: Respect telemetry settings
+if (vscode.env.isTelemetryEnabled) {
+  // Send telemetry
+}
+
+// ❌ BAD: Always send telemetry
+sendTelemetry(); // Violates user privacy!
+```
+
+## Output Channel
+
+```typescript
+// Create output channel
+const outputChannel = vscode.window.createOutputChannel('Camouflage');
+
+// Log messages
+outputChannel.appendLine('[INFO] Extension activated');
+outputChannel.appendLine(`[ERROR] Failed to process: ${error}`);
+
+// Show output panel
+outputChannel.show();
+
+// Dispose
+context.subscriptions.push(outputChannel);
+```
+
+## WebView (If Needed)
+
+```typescript
+const panel = vscode.window.createWebviewPanel(
+  'camouflageSettings',
+  'Camouflage Settings',
+  vscode.ViewColumn.One,
+  {
+    enableScripts: true,
+    retainContextWhenHidden: true,
+  }
+);
+
+panel.webview.html = getWebviewContent();
+
+// Handle messages from webview
+panel.webview.onDidReceiveMessage(
+  (message) => {
+    switch (message.command) {
+      case 'save':
+        saveSettings(message.data);
+        return;
+    }
+  },
+  undefined,
+  context.subscriptions
+);
+```
+
+## Extension Dependencies
+
+```json
+// Only include necessary dependencies
+"dependencies": {
+  "minimatch": "^5.1.0" // Only if needed
+},
+"devDependencies": {
+  "@types/vscode": "^1.70.0",
+  "@types/node": "^18.0.0",
+  "typescript": "^5.0.0"
+}
+```
+
+**Rules**:
+
+- ✅ Minimize runtime dependencies
+- ✅ Use devDependencies for build tools
+- ✅ Specify exact VS Code version requirement
+- ❌ Don't bundle unnecessary libraries

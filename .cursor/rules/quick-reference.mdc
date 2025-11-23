@@ -1,0 +1,510 @@
+---
+alwaysApply: false
+---
+
+# Quick Reference
+
+## Essential Commands
+
+```bash
+# Development
+npm install          # Install dependencies
+npm run compile      # Compile TypeScript
+npm run watch        # Watch mode compilation
+npm test             # Run tests
+npm test -- --watch  # Watch mode tests
+npm run lint         # Run ESLint
+npm run format       # Format with Prettier
+
+# Extension
+F5                   # Launch Extension Development Host
+Ctrl+Shift+H         # Toggle masking (in .env files)
+Cmd+Shift+H          # Toggle masking (macOS)
+
+# Release (automated)
+git commit -m "feat: new feature"  # Semantic commit
+git push origin main               # Auto-release on merge
+```
+
+## Key Files
+
+| File                     | Purpose               |
+| ------------------------ | --------------------- |
+| `src/extension.ts`       | Extension entry point |
+| `src/core/camouflage.ts` | Main business logic   |
+| `src/utils/config.ts`    | Configuration facade  |
+| `package.json`           | Extension manifest    |
+| `tsconfig.json`          | TypeScript config     |
+| `jest.config.js`         | Test config           |
+
+## Dependency Flow
+
+```
+extension.ts
+    ↓
+core/camouflage.ts
+    ↓
+lib/ + utils/
+```
+
+**Rules**:
+
+- `lib/` → Pure functions only
+- `utils/` → Can use VS Code API
+- `core/` → Orchestrates everything
+- No circular dependencies
+
+## Common Tasks
+
+### Add New Hiding Style
+
+1. Update `package.json`:
+
+```json
+"enum": ["text", "dotted", "stars", "scramble", "newStyle"]
+```
+
+2. Update `text-generator.ts`:
+
+```typescript
+const strategies: Record<HiddenTextStyle, GeneratorStrategy> = {
+  // ... existing
+  newStyle: (text) => transformText(text),
+};
+```
+
+3. Add tests:
+
+```typescript
+it('should generate newStyle text', () => {
+  expect(generateHiddenText('test', 'newStyle')).toBe('expected');
+});
+```
+
+4. Update README with example
+
+### Add New Command
+
+1. Update `package.json`:
+
+```json
+"commands": [{
+  "command": "camouflage.newCommand",
+  "title": "Camouflage: New Command"
+}]
+```
+
+2. Register in `extension.ts`:
+
+```typescript
+const command = vscode.commands.registerCommand('camouflage.newCommand', () =>
+  camouflage.newCommand()
+);
+context.subscriptions.push(command);
+```
+
+3. Implement in `camouflage.ts`:
+
+```typescript
+@Log('New Command')
+@HandleErrors
+public newCommand(): void {
+  // Implementation
+}
+```
+
+### Add New Configuration
+
+1. Update `package.json`:
+
+```json
+"camouflage.newSetting": {
+  "type": "boolean",
+  "default": true,
+  "description": "New setting description"
+}
+```
+
+2. Add getter in `config.ts`:
+
+```typescript
+export function getNewSetting(): boolean {
+  return vscode.workspace.getConfiguration('camouflage').get<boolean>('newSetting', true);
+}
+```
+
+3. Use in code:
+
+```typescript
+import * as config from '../utils/config';
+
+if (config.getNewSetting()) {
+  // Do something
+}
+```
+
+## Testing Patterns
+
+### Unit Test Template
+
+```typescript
+describe('functionName', () => {
+  beforeEach(() => {
+    // Setup
+  });
+
+  afterEach(() => {
+    // Cleanup
+  });
+
+  it('should handle normal case', () => {
+    // Arrange
+    const input = 'test';
+
+    // Act
+    const result = functionName(input);
+
+    // Assert
+    expect(result).toBe('expected');
+  });
+
+  it('should handle edge case', () => {
+    expect(functionName('')).toBe('');
+  });
+
+  it('should throw on invalid input', () => {
+    expect(() => functionName(null)).toThrow();
+  });
+});
+```
+
+## Design Patterns Used
+
+### Decorator
+
+```typescript
+@Log('Message')
+@HandleErrors
+@Debounce(100)
+public method(): void { }
+```
+
+### Facade
+
+```typescript
+import * as config from '../utils/config';
+
+if (config.isEnabled()) {
+  const style = config.getHidingStyle();
+}
+```
+
+### Strategy
+
+```typescript
+const strategies: Record<HiddenTextStyle, GeneratorStrategy> = {
+  text: (text) => 'camouflage'.repeat(Math.ceil(text.length / 10)),
+  stars: (text) => '*'.repeat(text.length),
+};
+
+export function generateHiddenText(text: string, style: HiddenTextStyle): string {
+  return strategies[style](text);
+}
+```
+
+## Configuration Access
+
+```typescript
+// Get value with default
+const isEnabled = vscode.workspace.getConfiguration('camouflage').get<boolean>('enabled', true);
+
+// Update value
+await vscode.workspace
+  .getConfiguration('camouflage')
+  .update('enabled', false, vscode.ConfigurationTarget.Global);
+
+// Listen for changes
+vscode.workspace.onDidChangeConfiguration((event) => {
+  if (event.affectsConfiguration('camouflage')) {
+    // Reload
+  }
+});
+```
+
+## Event Handling
+
+```typescript
+// Document changes (debounce this!)
+vscode.workspace.onDidChangeTextDocument((event) => {
+  if (event.document === vscode.window.activeTextEditor?.document) {
+    updateDecorations();
+  }
+});
+
+// Editor changes
+vscode.window.onDidChangeActiveTextEditor((editor) => {
+  if (editor && isEnvFile(editor.document.fileName)) {
+    updateDecorations();
+  }
+});
+
+// Always register for disposal
+context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(handler));
+```
+
+## Resource Disposal
+
+```typescript
+export function deactivate(): void {
+  // Dispose resources
+  if (decorationType) {
+    decorationType.dispose();
+  }
+}
+
+// Or register for auto-disposal
+context.subscriptions.push(statusBarItem, decorationType, command);
+```
+
+## Code Quality Checks
+
+```typescript
+// ✅ Always use === not ==
+if (value === 'test') {
+}
+
+// ✅ Use curly braces even for single line
+if (condition) {
+  doSomething();
+}
+
+// ✅ Optional chaining
+const fileName = editor?.document?.fileName;
+
+// ✅ Nullish coalescing
+const timeout = config.get('timeout') ?? 300;
+
+// ✅ Async/await not .then()
+const result = await fetchData();
+
+// ✅ Ignore unused params with _
+function handler(_param: string, used: number) {}
+
+// ✅ Prefer const over let
+const value = getValue();
+```
+
+## Commit Messages
+
+```bash
+# Feature (minor version bump)
+git commit -m "feat(core): add custom hiding characters"
+
+# Bug fix (patch version bump)
+git commit -m "fix(patterns): escape special regex characters"
+
+# Breaking change (major version bump)
+git commit -m "feat(core): redesign pattern API
+
+BREAKING CHANGE: matchPattern now returns object instead of boolean"
+
+# Other types (no version bump)
+git commit -m "docs: update README examples"
+git commit -m "test: add pattern matching tests"
+git commit -m "refactor(core): extract decoration logic"
+git commit -m "chore: update dependencies"
+```
+
+## Debugging
+
+### VS Code Extension Debugging
+
+1. Press F5 to launch Extension Development Host
+2. Open Debug Console in main VS Code window
+3. Set breakpoints in source code
+4. Extension runs in new window
+
+### Common Issues
+
+**Extension not activating**
+
+- Check activation events in package.json
+- Look for errors in Debug Console
+- Verify file patterns match
+
+**Decorations not showing**
+
+- Check if file is recognized as .env
+- Verify configuration is enabled
+- Look for errors in console
+
+**Tests failing**
+
+- Clear Jest cache: `npm test -- --clearCache`
+- Check mock setup in `__mocks__/vscode.ts`
+- Verify imports are correct
+
+## Performance Tips
+
+```typescript
+// ✅ Debounce frequent operations
+@Debounce(100)
+private updateDecorations(): void { }
+
+// ✅ Cache expensive computations
+private regexCache = new Map<string, RegExp>();
+
+// ✅ Use optional chaining to avoid null checks
+const text = editor?.document?.getText();
+
+// ✅ Early returns to avoid nesting
+if (!editor) return;
+if (!isEnvFile(editor.document.fileName)) return;
+
+// ✅ Batch operations
+const ranges = getAllRanges();
+editor.setDecorations(decorationType, ranges);
+```
+
+## Security Checklist
+
+- [ ] No file modifications
+- [ ] No network requests with sensitive data
+- [ ] All user input validated
+- [ ] Patterns sanitized before regex compilation
+- [ ] No logging of values
+- [ ] No telemetry of sensitive data
+- [ ] Errors don't leak information
+
+## Useful VS Code API
+
+```typescript
+// Current editor
+const editor = vscode.window.activeTextEditor;
+
+// Current document
+const document = editor?.document;
+
+// Status bar
+const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+
+// Messages
+vscode.window.showInformationMessage('Info');
+vscode.window.showWarningMessage('Warning');
+vscode.window.showErrorMessage('Error');
+
+// Commands
+await vscode.commands.executeCommand('command.id');
+
+// Configuration
+const config = vscode.workspace.getConfiguration('camouflage');
+const value = config.get<boolean>('enabled', true);
+
+// Ranges
+const range = new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 10));
+
+// Decorations
+const decorationType = vscode.window.createTextEditorDecorationType({
+  color: '#FF0000',
+  backgroundColor: '#00000000',
+});
+editor.setDecorations(decorationType, [range]);
+```
+
+## File Patterns
+
+```typescript
+// .env file detection
+const ENV_FILE_PATTERNS = [
+  '.env',
+  '.env.local',
+  '.env.development',
+  '.env.test',
+  '.env.production',
+];
+
+export function isEnvFile(fileName: string): boolean {
+  return ENV_FILE_PATTERNS.some((pattern) => fileName.endsWith(pattern));
+}
+```
+
+## Regular Expressions
+
+```typescript
+// Env variable pattern: KEY=VALUE
+const ENV_VAR_REGEX = /^([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$/;
+
+// Wildcard pattern conversion
+const pattern = '*API*';
+const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const regexPattern = escaped.replace(/\\\*/g, '.*');
+const regex = new RegExp(regexPattern, 'i');
+```
+
+## Module Exports
+
+```typescript
+// ✅ Prefer named exports
+export function functionName(): void {}
+export class ClassName {}
+export interface InterfaceName {}
+
+// ❌ Avoid default exports
+export default function () {} // No
+```
+
+## TypeScript Config
+
+```json
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2020",
+    "outDir": "dist",
+    "lib": ["ES2020"],
+    "sourceMap": true,
+    "rootDir": "src",
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "esModuleInterop": true
+  }
+}
+```
+
+## VS Code Extension Manifest
+
+```json
+{
+  "name": "camouflage",
+  "displayName": "Camouflage",
+  "description": "Hide sensitive environment variables",
+  "version": "1.1.1",
+  "publisher": "publisher-name",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onLanguage:dotenv"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [],
+    "configuration": {},
+    "keybindings": [],
+    "menus": {}
+  }
+}
+```
+
+## References
+
+For detailed information:
+
+- **Architecture**: See `architecture.mdc`
+- **Coding Standards**: See `coding-standards.mdc`
+- **Testing**: See `testing.mdc`
+- **Git Workflow**: See `git-workflow.mdc`
+- **VS Code Extension**: See `vscode-extension.mdc`
+- **Security**: See `security.mdc`
+- **Patterns**: See `patterns.mdc`
+- **AI Guidelines**: See `ai-guidelines.mdc`

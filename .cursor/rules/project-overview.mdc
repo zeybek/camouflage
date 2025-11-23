@@ -1,0 +1,49 @@
+---
+alwaysApply: false
+---
+
+# Camouflage - VS Code Extension Project Overview
+
+## Project Purpose
+
+Camouflage is a Visual Studio Code extension that protects sensitive environment variables in `.env` files during screen sharing, streaming, and recording sessions. It provides real-time visual masking of values while maintaining full editability.
+
+## Core Problem Solved
+
+Developers frequently need to share their screen (Zoom, streaming, recordings) but `.env` files contain sensitive data (API keys, passwords, tokens). Camouflage automatically masks these values visually without modifying the actual file content.
+
+## Architecture Type
+
+**Modular Layered Architecture**:
+
+- **Presentation Layer**: VS Code UI integration (decorations, status bar, commands)
+- **Business Logic Layer**: Core masking engine, pattern matching, configuration
+- **Utility Layer**: Helper functions, text generation, validation
+- **Infrastructure Layer**: VS Code API integration, file system, event handling
+
+## Key Technologies
+
+- **TypeScript**: 100% TypeScript codebase for type safety
+- **VS Code Extension API**: Native VS Code extension development
+- **Jest**: Unit and integration testing framework
+- **ESLint + Prettier**: Code quality and formatting
+- **Semantic Release**: Automated versioning and changelog generation
+
+## Project Success Factors
+
+1. **Zero File Modification**: Never touches actual file content
+2. **Real-time Performance**: Sub-100ms decoration updates
+3. **Pattern Flexibility**: Wildcard and regex pattern matching
+4. **Security First**: No telemetry, all processing local
+5. **User Experience**: Intuitive, non-intrusive, keyboard-friendly
+
+## Key Features
+
+- Multiple hiding styles (Text, Dotted, Stars, Scramble)
+- Selective hiding with pattern matching
+- Case-insensitive pattern support
+- Keyboard shortcuts for quick toggle
+- Status bar indicator
+- Context menu integration
+- Performance monitoring decorators
+- Comprehensive error handling

@@ -1,0 +1,252 @@
+---
+alwaysApply: false
+---
+
+# Project Architecture
+
+## Directory Structure
+
+```
+camouflage/
+├── src/
+│   ├── core/              # Business logic
+│   │   └── camouflage.ts  # Main engine
+│   ├── lib/               # Pure functions
+│   │   ├── decorators.ts  # Method decorators
+│   │   └── text-generator.ts # Text transformation
+│   ├── utils/             # Helper utilities
+│   │   ├── config.ts      # Configuration facade
+│   │   ├── file-utils.ts  # File operations
+│   │   ├── pattern-matcher.ts # Pattern matching
+│   │   └── validator.ts   # Input validation
+│   ├── __tests__/         # Test files (mirrors src)
+│   │   ├── core/
+│   │   ├── lib/
+│   │   └── utils/
+│   ├── __mocks__/         # Test mocks
+│   │   └── vscode.ts      # VS Code API mock
+│   └── extension.ts       # Entry point
+├── .github/
+│   └── workflows/         # CI/CD pipelines
+├── .vscode/               # VS Code workspace config
+├── dist/                  # Compiled output
+└── node_modules/          # Dependencies
+```
+
+## Module Responsibilities
+
+### Core Module (`src/core/`)
+
+**Purpose**: Contains the main business logic and state management
+
+**Files**:
+
+- `camouflage.ts`: Main class managing decorations, events, status bar
+
+**Responsibilities**:
+
+- Apply/remove decorations
+- Handle editor events
+- Manage extension state
+- Status bar updates
+- Command execution
+
+**Dependencies**: Can import from `lib/`, `utils/`, and VS Code API
+
+### Library Module (`src/lib/`)
+
+**Purpose**: Pure, reusable functions with no side effects
+
+**Files**:
+
+- `decorators.ts`: Method decorators (@Log, @HandleErrors, etc.)
+- `text-generator.ts`: Text transformation algorithms
+
+**Rules**:
+
+- ✅ Must be pure functions (same input → same output)
+- ✅ No side effects (no file I/O, no global state)
+- ✅ No VS Code API imports
+- ✅ Fully unit testable
+
+**Dependencies**: Can only import Node.js built-ins and other lib modules
+
+### Utils Module (`src/utils/`)
+
+**Purpose**: Helper functions and facades
+
+**Files**:
+
+- `config.ts`: Configuration access facade
+- `file-utils.ts`: File system operations
+- `pattern-matcher.ts`: Pattern matching logic
+- `validator.ts`: Input validation
+
+**Rules**:
+
+- ✅ Can have side effects (file I/O, API calls)
+- ✅ Can import VS Code API
+- ✅ Should be stateless where possible
+- ✅ Each file has single responsibility
+
+**Dependencies**: Can import from `lib/` and VS Code API, but not `core/`
+
+### Tests Module (`src/__tests__/`)
+
+**Purpose**: All test files
+
+**Structure**: Mirrors `src/` directory structure
+
+**Rules**:
+
+- ✅ Every module must have corresponding test file
+- ✅ Use `describe` blocks for grouping
+- ✅ Use AAA pattern (Arrange, Act, Assert)
+- ✅ Mock external dependencies
+- ✅ Test file naming: `*.test.ts`
+
+## Dependency Rules
+
+### Allowed Dependencies
+
+```
+extension.ts → core/ → lib/ + utils/
+                ↓
+            VS Code API
+```
+
+### Forbidden Dependencies
+
+- ❌ `lib/` MUST NOT import from `core/` or `utils/`
+- ❌ `utils/` MUST NOT import from `core/`
+- ❌ Circular dependencies between modules
+- ❌ Direct file system access in `lib/`
+
+## File Organization Rules
+
+### File Naming
+
+- `kebab-case.ts` for all files
+- `*.test.ts` for test files
+- `*.d.ts` for type declarations
+
+### File Size
+
+- Max 300 lines per file (excluding tests)
+- If exceeding, split into smaller modules
+- Exception: Generated files, type definitions
+
+### Export Rules
+
+- ✅ Named exports preferred over default exports
+- ✅ One main export per file (with supporting types)
+- ✅ Export only public API
+- ✅ Use `export type` for type-only exports
+
+### Import Order
+
+1. Node.js built-ins (`import * as fs from 'fs'`)
+2. External packages (`import * as vscode from 'vscode'`)
+3. Internal modules - absolute paths from src root
+4. Type imports (`import type { ... }`)
+
+**Example**:
+
+```typescript
+import * as fs from 'fs';
+import * as vscode from 'vscode';
+import { generateHiddenText } from '../lib/text-generator';
+import { isEnvFile } from '../utils/file-utils';
+import type { HiddenTextStyle } from '../types';
+```
+
+## State Management
+
+### Global State
+
+- ❌ Avoid global mutable state
+- ✅ Use class properties in `Camouflage` class
+- ✅ Dispose resources properly
+- ✅ Register disposables with VS Code context
+
+### Extension State
+
+Managed in `core/camouflage.ts`:
+
+- `activeEditor`: Current editor
+- `decorationType`: Current decoration type
+- `statusBarItem`: Status bar UI element
+- `hiddenRanges`: Cached decoration ranges
+
+## Error Boundaries
+
+Each layer handles errors differently:
+
+1. **Extension Layer** (`extension.ts`):
+
+   - Catch all errors
+   - Show user-friendly messages
+   - Log to output channel
+
+2. **Core Layer** (`core/`):
+
+   - Use `@HandleErrors` decorator
+   - Propagate critical errors up
+   - Handle recoverable errors
+
+3. **Utils Layer** (`utils/`):
+
+   - Validate inputs
+   - Throw descriptive errors
+   - No error suppression
+
+4. **Lib Layer** (`lib/`):
+   - Pure functions - no try/catch
+   - Validate inputs with types
+   - Let caller handle errors
+
+## Performance Considerations
+
+### Hot Paths (must be fast)
+
+- `updateDecorations()`: Called on every text change
+- `generateHiddenText()`: Called for every masked value
+- `matchesAnyPattern()`: Called for every env var
+
+**Optimizations**:
+
+- Cache compiled regexes
+- Debounce frequent operations
+- Use `@Debounce` decorator
+- Minimize DOM operations
+
+### Cold Paths (can be slower)
+
+- Extension activation
+- Configuration changes
+- Command execution
+
+## Extension Points
+
+### Adding New Hiding Style
+
+1. Add enum value to `HiddenTextStyle` in `package.json`
+2. Implement in `generateHiddenText()` in `text-generator.ts`
+3. Add tests in `text-generator.test.ts`
+4. Update README with example
+
+### Adding New Command
+
+1. Define in `package.json` contributes.commands
+2. Register in `extension.ts` activate function
+3. Implement in `core/camouflage.ts` if complex
+4. Add keyboard shortcut if needed
+5. Update README
+
+### Adding New Configuration
+
+1. Define in `package.json` contributes.configuration
+2. Add getter in `utils/config.ts`
+3. Update `updateDecorationType()` if affects styling
+4. Add validation if needed
+5. Update README

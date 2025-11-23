@@ -1,0 +1,512 @@
+---
+alwaysApply: false
+---
+
+# Git Workflow and Release Process
+
+## Commit Message Format
+
+We use **Conventional Commits** for automated semantic versioning and changelog generation.
+
+### Format
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+### Type
+
+Must be one of:
+
+- **feat**: New feature (triggers minor version bump)
+- **fix**: Bug fix (triggers patch version bump)
+- **docs**: Documentation changes
+- **style**: Code style changes (formatting, no logic change)
+- **refactor**: Code refactoring (no features or bugs)
+- **perf**: Performance improvements
+- **test**: Adding or updating tests
+- **chore**: Build process, dependencies, tooling
+- **ci**: CI/CD configuration changes
+
+### Scope (Optional)
+
+The scope specifies the area of the codebase:
+
+- `core`: Core functionality (camouflage.ts)
+- `config`: Configuration management
+- `decorators`: Decorator functions
+- `patterns`: Pattern matching
+- `tests`: Test files
+- `docs`: Documentation
+
+### Subject
+
+- Imperative mood ("add" not "added" or "adds")
+- Lowercase first letter
+- No period at the end
+- Max 50 characters
+
+### Breaking Changes
+
+Breaking changes trigger a major version bump:
+
+```
+feat(core): redesign pattern matching API
+
+BREAKING CHANGE: matchPattern now returns object instead of boolean
+```
+
+### Examples
+
+```bash
+# Feature (bumps 1.0.0 → 1.1.0)
+feat(core): add support for custom hiding characters
+
+# Bug fix (bumps 1.0.0 → 1.0.1)
+fix(patterns): handle special regex characters correctly
+
+# Documentation
+docs: update README with new configuration options
+
+# Refactoring
+refactor(core): extract decoration logic into separate method
+
+# Performance
+perf(patterns): cache compiled regexes for pattern matching
+
+# Breaking change (bumps 1.0.0 → 2.0.0)
+feat(core): redesign configuration API
+
+BREAKING CHANGE: Configuration keys changed from camelCase to snake_case
+```
+
+### Body (Optional)
+
+- Detailed explanation of the change
+- Motivation for the change
+- Contrast with previous behavior
+
+```
+feat(core): add selective hiding by pattern
+
+This allows users to hide only specific environment variables
+by providing wildcard patterns like *API*, *SECRET, etc.
+
+Previously, all values were hidden or none were hidden.
+```
+
+### Footer (Optional)
+
+- Reference issues
+- Note breaking changes
+- Credit co-authors
+
+```
+fix(patterns): escape special regex characters
+
+Fixes #45
+```
+
+## Branching Strategy
+
+### Main Branches
+
+- **`main`**: Production-ready code, protected branch
+- **`develop`**: Integration branch (optional for larger teams)
+
+### Feature Branches
+
+```bash
+# Create feature branch from main
+git checkout main
+git pull origin main
+git checkout -b feature/add-custom-characters
+
+# Work on feature
+git add .
+git commit -m "feat(core): add custom hiding characters"
+
+# Push to remote
+git push origin feature/add-custom-characters
+```
+
+**Naming**:
+
+- `feature/*` - New features
+- `fix/*` - Bug fixes
+- `docs/*` - Documentation
+- `refactor/*` - Code refactoring
+- `test/*` - Test improvements
+- `chore/*` - Tooling, dependencies
+
+### Bug Fix Branches
+
+```bash
+# Create from main
+git checkout -b fix/regex-escape-issue
+
+# Fix and commit
+git commit -m "fix(patterns): escape special characters in patterns"
+
+# Push
+git push origin fix/regex-escape-issue
+```
+
+### Hotfix Branches
+
+For urgent production fixes:
+
+```bash
+# Create from main
+git checkout -b hotfix/security-vulnerability
+
+# Fix and commit with appropriate type
+git commit -m "fix(security): sanitize user input in pattern matching"
+
+# Push
+git push origin hotfix/security-vulnerability
+```
+
+## Pull Request Process
+
+### Creating a PR
+
+1. **Push branch to GitHub**
+
+```bash
+git push origin feature/my-feature
+```
+
+2. **Create PR on GitHub**
+
+   - Base: `main`
+   - Compare: `feature/my-feature`
+   - Fill in PR template
+
+3. **PR Title**: Should match commit message format
+
+```
+feat(core): add custom hiding characters
+```
+
+4. **PR Description**: Include:
+   - What changed
+   - Why it changed
+   - How to test
+   - Screenshots (if UI changes)
+   - Related issues
+
+### PR Template
+
+```markdown
+## Description
+
+Brief description of changes
+
+## Type of Change
+
+- [ ] Bug fix (fix)
+- [ ] New feature (feat)
+- [ ] Breaking change (BREAKING CHANGE)
+- [ ] Documentation update (docs)
+
+## Testing
+
+- [ ] All tests pass (`npm test`)
+- [ ] No linting errors (`npm run lint`)
+- [ ] Manual testing completed
+
+## Checklist
+
+- [ ] Code follows project style guidelines
+- [ ] Self-review completed
+- [ ] Comments added for complex logic
+- [ ] Documentation updated
+- [ ] Tests added/updated
+- [ ] No console.log statements left
+```
+
+### PR Review Guidelines
+
+**For Authors**:
+
+- Keep PRs small and focused (< 400 lines)
+- Write clear commit messages
+- Add tests for new features
+- Update documentation
+- Respond to feedback promptly
+
+**For Reviewers**:
+
+- Check code quality and style
+- Verify tests are adequate
+- Look for potential bugs
+- Suggest improvements
+- Be constructive and respectful
+
+### Merging
+
+- **Squash and merge** is preferred for feature branches
+- Ensure final commit message follows conventional format
+- Delete branch after merge
+
+## Semantic Release Process
+
+### Automated Releases
+
+We use `semantic-release` for automated versioning and releases.
+
+**Workflow**:
+
+1. PR merged to `main`
+2. GitHub Actions runs `semantic-release`
+3. Analyzes commit messages
+4. Determines version bump
+5. Generates CHANGELOG
+6. Creates git tag
+7. Publishes to VS Code Marketplace
+8. Creates GitHub release
+
+### Version Bumping
+
+Based on commit types:
+
+- **feat**: 1.0.0 → 1.1.0 (minor)
+- **fix**: 1.0.0 → 1.0.1 (patch)
+- **BREAKING CHANGE**: 1.0.0 → 2.0.0 (major)
+- **docs, style, refactor, test, chore**: No version bump
+
+### CHANGELOG Generation
+
+Automatically generated from commits:
+
+```markdown
+# [1.2.0](https://github.com/user/repo/compare/v1.1.0...v1.2.0) (2024-01-15)
+
+### Features
+
+- **core**: add custom hiding characters ([abc123](link))
+
+### Bug Fixes
+
+- **patterns**: escape special regex characters ([def456](link))
+```
+
+### Manual Release (Emergency)
+
+If automated release fails:
+
+```bash
+# Ensure main is clean
+git checkout main
+git pull origin main
+
+# Run semantic-release locally
+npx semantic-release --no-ci
+
+# Verify release created
+git tag
+```
+
+## Git Best Practices
+
+### Commit Often
+
+```bash
+# Small, focused commits
+git add src/core/camouflage.ts
+git commit -m "feat(core): add getHiddenRanges method"
+
+git add src/core/camouflage.ts
+git commit -m "refactor(core): extract decoration update logic"
+```
+
+### Write Good Commit Messages
+
+```bash
+# ✅ GOOD
+git commit -m "fix(patterns): handle empty pattern array"
+
+# ❌ BAD
+git commit -m "fixed bug"
+git commit -m "update"
+git commit -m "changes"
+```
+
+### Pull Before Push
+
+```bash
+# Always pull latest changes before pushing
+git pull --rebase origin main
+git push origin feature/my-feature
+```
+
+### Use Rebase for Clean History
+
+```bash
+# Update feature branch with main changes
+git checkout feature/my-feature
+git rebase main
+
+# If conflicts, resolve and continue
+git add .
+git rebase --continue
+```
+
+### Interactive Rebase for Cleanup
+
+```bash
+# Clean up commits before PR
+git rebase -i HEAD~3
+
+# Options:
+# pick = keep commit
+# reword = change message
+# squash = combine with previous
+# drop = remove commit
+```
+
+## Protected Branches
+
+### `main` Branch Protection
+
+Settings enforced:
+
+- ✅ Require pull request reviews
+- ✅ Require status checks to pass (CI tests, linting)
+- ✅ Require branches to be up to date
+- ✅ Include administrators
+- ❌ Allow force pushes
+- ❌ Allow deletions
+
+## Git Hooks
+
+### Pre-commit
+
+Runs automatically before commit:
+
+```bash
+# .husky/pre-commit
+npm run lint
+npm test
+```
+
+### Pre-push
+
+Runs before pushing:
+
+```bash
+# .husky/pre-push
+npm run build
+```
+
+### Commit Message Validation
+
+```bash
+# .husky/commit-msg
+npx --no-install commitlint --edit "$1"
+```
+
+Validates commit message format.
+
+## Working with Issues
+
+### Linking Issues
+
+In commit messages:
+
+```bash
+git commit -m "fix(patterns): escape regex special chars
+
+Fixes #42"
+```
+
+In PRs:
+
+```markdown
+Closes #42
+Fixes #43
+Resolves #44
+```
+
+### Issue Labels
+
+- `bug` - Something isn't working
+- `feature` - New feature request
+- `documentation` - Documentation improvements
+- `good first issue` - Good for newcomers
+- `help wanted` - Extra attention needed
+- `priority: high` - High priority
+- `priority: low` - Low priority
+
+## Release Checklist
+
+Before major releases:
+
+- [ ] All tests passing
+- [ ] Documentation updated
+- [ ] CHANGELOG reviewed
+- [ ] Migration guide created (if breaking changes)
+- [ ] Beta tested by maintainers
+- [ ] Performance benchmarks run
+- [ ] Security review completed
+- [ ] Backward compatibility verified
+
+## Emergency Rollback
+
+If a bad release goes out:
+
+```bash
+# Revert to previous version
+git checkout main
+git revert HEAD
+git push origin main
+
+# Or create hotfix
+git checkout -b hotfix/revert-bad-change
+git revert <bad-commit-hash>
+git push origin hotfix/revert-bad-change
+# Create PR to main
+```
+
+## Versioning Strategy
+
+We follow **Semantic Versioning 2.0.0**:
+
+- **MAJOR** (X.0.0): Breaking changes
+- **MINOR** (0.X.0): New features, backward compatible
+- **PATCH** (0.0.X): Bug fixes, backward compatible
+
+### Pre-release Versions
+
+For beta testing:
+
+```
+1.2.0-beta.1
+1.2.0-beta.2
+1.2.0-rc.1
+1.2.0
+```
+
+## Git Configuration
+
+Recommended local git config:
+
+```bash
+# Set up commit signing
+git config --global user.name "Your Name"
+git config --global user.email "your.email@example.com"
+
+# Use rebase by default for pulls
+git config --global pull.rebase true
+
+# Prune stale branches on fetch
+git config --global fetch.prune true
+
+# Use diff-so-fancy for better diffs
+git config --global core.pager "diff-so-fancy | less --tabs=4 -RFX"
+```

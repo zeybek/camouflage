@@ -1,0 +1,604 @@
+---
+alwaysApply: false
+---
+
+# Testing Guidelines
+
+## Test Philosophy
+
+### Core Principles
+
+1. **Tests are documentation**: Test names should explain behavior
+2. **Fast feedback**: Unit tests should run in milliseconds
+3. **Reliable**: Tests should not be flaky
+4. **Maintainable**: Tests should be easy to update when requirements change
+5. **Coverage**: Minimum 80% code coverage, aim for 90%+
+
+## Test Structure
+
+### AAA Pattern (Arrange, Act, Assert)
+
+```typescript
+describe('generateHiddenText', () => {
+  it('should mask text with stars style', () => {
+    // Arrange
+    const input = 'secret123';
+    const style: HiddenTextStyle = 'stars';
+
+    // Act
+    const result = generateHiddenText(input, style);
+
+    // Assert
+    expect(result).toBe('*********');
+  });
+});
+```
+
+### Test File Organization
+
+```typescript
+// Top-level describe: Module or class name
+describe('Camouflage', () => {
+  // Setup and teardown
+  beforeEach(() => {
+    // Reset state before each test
+  });
+
+  afterEach(() => {
+    // Cleanup after each test
+  });
+
+  // Nested describe: Method or feature
+  describe('updateDecorations', () => {
+    // Individual test cases
+    it('should apply decorations to .env file', () => {});
+    it('should skip non-.env files', () => {});
+    it('should handle empty files', () => {});
+  });
+
+  describe('toggle', () => {
+    it('should disable when enabled', () => {});
+    it('should enable when disabled', () => {});
+  });
+});
+```
+
+## Test Coverage Requirements
+
+### Required Coverage
+
+- **Statements**: 80%+
+- **Branches**: 75%+
+- **Functions**: 80%+
+- **Lines**: 80%+
+
+### What to Test
+
+✅ **Must Test**:
+
+- All public methods and functions
+- Edge cases (empty input, null, undefined)
+- Error conditions
+- Configuration changes
+- State transitions
+
+✅ **Should Test**:
+
+- Private methods with complex logic
+- Integration between modules
+- Performance-critical paths
+
+❌ **Don't Test**:
+
+- Third-party library code
+- Generated code
+- Simple getters/setters without logic
+- VS Code API itself
+
+## Unit Testing Patterns
+
+### Pure Functions (Easiest)
+
+```typescript
+// Function to test
+export function matchPattern(key: string, pattern: string): boolean {
+  return new RegExp(pattern, 'i').test(key);
+}
+
+// Test
+describe('matchPattern', () => {
+  it('should match case-insensitively', () => {
+    expect(matchPattern('API_KEY', 'api')).toBe(true);
+    expect(matchPattern('api_key', 'API')).toBe(true);
+  });
+
+  it('should support wildcard patterns', () => {
+    expect(matchPattern('MY_API_KEY', '*API*')).toBe(true);
+    expect(matchPattern('SECRET_TOKEN', '*TOKEN')).toBe(true);
+  });
+
+  it('should return false for non-matches', () => {
+    expect(matchPattern('DATABASE_URL', 'api')).toBe(false);
+  });
+});
+```
+
+### Functions with Dependencies (Use Mocks)
+
+```typescript
+// Function to test
+export function readEnvFile(filePath: string): string {
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+// Test with mock
+jest.mock('fs');
+
+describe('readEnvFile', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should read file content', () => {
+    const mockContent = 'API_KEY=secret';
+    (fs.readFileSync as jest.Mock).mockReturnValue(mockContent);
+
+    const result = readEnvFile('/path/.env');
+
+    expect(result).toBe(mockContent);
+    expect(fs.readFileSync).toHaveBeenCalledWith('/path/.env', 'utf8');
+  });
+
+  it('should throw on file not found', () => {
+    (fs.readFileSync as jest.Mock).mockImplementation(() => {
+      throw new Error('ENOENT');
+    });
+
+    expect(() => readEnvFile('/path/.env')).toThrow('ENOENT');
+  });
+});
+```
+
+### Class Testing
+
+```typescript
+describe('Camouflage', () => {
+  let camouflage: Camouflage;
+  let mockEditor: vscode.TextEditor;
+
+  beforeEach(() => {
+    camouflage = new Camouflage();
+    mockEditor = createMockEditor(); // Helper function
+  });
+
+  afterEach(() => {
+    camouflage.dispose();
+  });
+
+  describe('initialization', () => {
+    it('should create status bar item', () => {
+      expect(camouflage['statusBarItem']).toBeDefined();
+    });
+
+    it('should apply decorations if .env file is open', () => {
+      mockEditor.document.fileName = '/path/.env';
+      vscode.window.activeTextEditor = mockEditor;
+
+      camouflage = new Camouflage();
+
+      expect(mockEditor.setDecorations).toHaveBeenCalled();
+    });
+  });
+
+  describe('toggle', () => {
+    it('should disable extension when enabled', async () => {
+      await camouflage.toggle();
+
+      expect(config.isEnabled()).toBe(false);
+    });
+  });
+});
+```
+
+## Mocking VS Code API
+
+### Mock Structure
+
+```typescript
+// __mocks__/vscode.ts
+export const window = {
+  activeTextEditor: undefined,
+  createStatusBarItem: jest.fn(() => ({
+    text: '',
+    tooltip: '',
+    show: jest.fn(),
+    hide: jest.fn(),
+    dispose: jest.fn(),
+  })),
+  showInformationMessage: jest.fn(),
+  showErrorMessage: jest.fn(),
+};
+
+export const workspace = {
+  getConfiguration: jest.fn(() => ({
+    get: jest.fn(),
+    update: jest.fn(),
+  })),
+  onDidChangeConfiguration: jest.fn(),
+  onDidChangeTextDocument: jest.fn(),
+};
+
+export const commands = {
+  registerCommand: jest.fn(),
+  executeCommand: jest.fn(),
+};
+
+export class Range {
+  constructor(
+    public start: { line: number; character: number },
+    public end: { line: number; character: number }
+  ) {}
+}
+
+export enum StatusBarAlignment {
+  Left = 1,
+  Right = 2,
+}
+```
+
+### Using VS Code Mocks
+
+```typescript
+import * as vscode from 'vscode';
+
+describe('Feature with VS Code API', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should show status bar', () => {
+    const mockStatusBar = {
+      text: '',
+      show: jest.fn(),
+      dispose: jest.fn(),
+    };
+
+    (vscode.window.createStatusBarItem as jest.Mock).mockReturnValue(mockStatusBar);
+
+    // Test code that creates status bar
+    const statusBar = vscode.window.createStatusBarItem();
+    statusBar.show();
+
+    expect(mockStatusBar.show).toHaveBeenCalled();
+  });
+});
+```
+
+## Integration Testing
+
+### Testing Module Interactions
+
+```typescript
+describe('Camouflage Integration', () => {
+  it('should apply correct decoration style from config', () => {
+    // Setup config
+    const mockConfig = {
+      get: jest.fn((key: string) => {
+        if (key === 'hiddenTextStyle') return 'stars';
+        if (key === 'enabled') return true;
+        return undefined;
+      }),
+    };
+
+    (vscode.workspace.getConfiguration as jest.Mock).mockReturnValue(mockConfig);
+
+    // Create instance
+    const camouflage = new Camouflage();
+
+    // Verify it reads config and applies correct style
+    expect(mockConfig.get).toHaveBeenCalledWith('hiddenTextStyle');
+    expect(camouflage['decorationType']).toBeDefined();
+  });
+});
+```
+
+## Test Data and Fixtures
+
+### Creating Test Data
+
+```typescript
+// test/fixtures/env-samples.ts
+export const SIMPLE_ENV = `
+API_KEY=secret123
+DATABASE_URL=postgresql://localhost
+DEBUG=true
+`.trim();
+
+export const MULTILINE_ENV = `
+API_KEY=secret123
+DESCRIPTION="This is a
+multiline value"
+TOKEN=abc123
+`.trim();
+
+export const EMPTY_ENV = '';
+
+// Usage in tests
+import { SIMPLE_ENV } from '../fixtures/env-samples';
+
+describe('parseEnvFile', () => {
+  it('should parse simple env file', () => {
+    const result = parseEnvFile(SIMPLE_ENV);
+    expect(result).toEqual({
+      API_KEY: 'secret123',
+      DATABASE_URL: 'postgresql://localhost',
+      DEBUG: 'true',
+    });
+  });
+});
+```
+
+### Helper Functions
+
+```typescript
+// test/helpers/editor-helpers.ts
+export function createMockEditor(options: Partial<vscode.TextEditor> = {}): vscode.TextEditor {
+  return {
+    document: {
+      fileName: '/test/.env',
+      getText: jest.fn(() => 'API_KEY=secret'),
+      lineAt: jest.fn(),
+      ...options.document,
+    },
+    setDecorations: jest.fn(),
+    selection: new vscode.Selection(0, 0, 0, 0),
+    ...options,
+  } as unknown as vscode.TextEditor;
+}
+
+// Usage
+const editor = createMockEditor({
+  document: { fileName: '/custom/.env' },
+});
+```
+
+## Testing Decorators
+
+```typescript
+describe('Decorators', () => {
+  describe('@Log', () => {
+    it('should log method calls', () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      class TestClass {
+        @Log('Test method')
+        testMethod(): void {}
+      }
+
+      const instance = new TestClass();
+      instance.testMethod();
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Test method'));
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('@Debounce', () => {
+    jest.useFakeTimers();
+
+    it('should debounce method calls', () => {
+      const mockFn = jest.fn();
+
+      class TestClass {
+        @Debounce(100)
+        debouncedMethod(): void {
+          mockFn();
+        }
+      }
+
+      const instance = new TestClass();
+
+      // Call multiple times rapidly
+      instance.debouncedMethod();
+      instance.debouncedMethod();
+      instance.debouncedMethod();
+
+      expect(mockFn).not.toHaveBeenCalled();
+
+      // Fast-forward time
+      jest.advanceTimersByTime(100);
+
+      expect(mockFn).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+```
+
+## Performance Testing
+
+```typescript
+describe('Performance', () => {
+  it('should process large files quickly', () => {
+    const largeEnvContent = Array(1000)
+      .fill(0)
+      .map((_, i) => `KEY_${i}=value_${i}`)
+      .join('\n');
+
+    const start = Date.now();
+    const result = parseEnvFile(largeEnvContent);
+    const duration = Date.now() - start;
+
+    expect(duration).toBeLessThan(100); // Should be under 100ms
+    expect(Object.keys(result)).toHaveLength(1000);
+  });
+});
+```
+
+## Testing Best Practices
+
+### Do's
+
+✅ **Test behavior, not implementation**
+
+```typescript
+// ✅ GOOD: Test behavior
+it('should mask sensitive values', () => {
+  const result = maskValue('secret123');
+  expect(result).not.toContain('secret123');
+});
+
+// ❌ BAD: Test implementation
+it('should call generateHiddenText with stars', () => {
+  const spy = jest.spyOn(generator, 'generateHiddenText');
+  maskValue('secret123');
+  expect(spy).toHaveBeenCalledWith('secret123', 'stars');
+});
+```
+
+✅ **Use descriptive test names**
+
+```typescript
+// ✅ GOOD
+it('should return false when patterns array is empty', () => {});
+
+// ❌ BAD
+it('test patterns', () => {});
+```
+
+✅ **One assertion per test (when possible)**
+
+```typescript
+// ✅ GOOD: Focused test
+it('should mask values with stars style', () => {
+  expect(generateHiddenText('secret', 'stars')).toBe('******');
+});
+
+// ❌ BAD: Multiple unrelated assertions
+it('should work correctly', () => {
+  expect(generateHiddenText('secret', 'stars')).toBe('******');
+  expect(isEnvFile('.env')).toBe(true);
+  expect(config.isEnabled()).toBe(true);
+});
+```
+
+✅ **Test edge cases**
+
+```typescript
+describe('matchPattern', () => {
+  it('should handle empty string', () => {
+    expect(matchPattern('', '*')).toBe(true);
+  });
+
+  it('should handle empty pattern', () => {
+    expect(matchPattern('API_KEY', '')).toBe(false);
+  });
+
+  it('should handle special regex characters', () => {
+    expect(matchPattern('API.KEY', 'API.KEY')).toBe(true);
+  });
+});
+```
+
+### Don'ts
+
+❌ **Don't test implementation details**
+
+```typescript
+// ❌ BAD
+it('should call updateDecorationType before updateDecorations', () => {
+  const spy1 = jest.spyOn(camouflage, 'updateDecorationType');
+  const spy2 = jest.spyOn(camouflage, 'updateDecorations');
+  // Testing internal call order is brittle
+});
+```
+
+❌ **Don't use setTimeout in tests**
+
+```typescript
+// ❌ BAD
+it('should update after delay', (done) => {
+  triggerUpdate();
+  setTimeout(() => {
+    expect(isUpdated()).toBe(true);
+    done();
+  }, 100);
+});
+
+// ✅ GOOD: Use fake timers
+jest.useFakeTimers();
+it('should update after delay', () => {
+  triggerUpdate();
+  jest.advanceTimersByTime(100);
+  expect(isUpdated()).toBe(true);
+});
+```
+
+❌ **Don't have tests depend on each other**
+
+```typescript
+// ❌ BAD
+describe('Counter', () => {
+  let counter = 0;
+
+  it('should increment', () => {
+    counter++;
+    expect(counter).toBe(1);
+  });
+
+  it('should increment again', () => {
+    counter++; // Depends on previous test!
+    expect(counter).toBe(2);
+  });
+});
+
+// ✅ GOOD: Independent tests
+describe('Counter', () => {
+  let counter: Counter;
+
+  beforeEach(() => {
+    counter = new Counter();
+  });
+
+  it('should increment from zero', () => {
+    counter.increment();
+    expect(counter.value).toBe(1);
+  });
+
+  it('should increment from zero again', () => {
+    counter.increment();
+    expect(counter.value).toBe(1);
+  });
+});
+```
+
+## Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm test -- --watch
+
+# Run tests with coverage
+npm test -- --coverage
+
+# Run specific test file
+npm test -- camouflage.test.ts
+
+# Run tests matching pattern
+npm test -- --testNamePattern="should mask"
+
+# Clear Jest cache
+npm test -- --clearCache
+```
+
+## Coverage Reports
+
+Check coverage report at `coverage/lcov-report/index.html` after running tests with coverage flag.
+
+Focus on:
+
+- Files with < 80% coverage
+- Uncovered branches (edge cases)
+- Uncovered error paths

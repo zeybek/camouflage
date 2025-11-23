@@ -1,0 +1,780 @@
+---
+alwaysApply: false
+---
+
+# Design Patterns and Anti-Patterns
+
+## Recommended Patterns
+
+### 1. Decorator Pattern (Method Decorators)
+
+**Purpose**: Add cross-cutting concerns without modifying core logic.
+
+**Implementation**:
+
+```typescript
+// lib/decorators.ts
+export function Log(message: string) {
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    const originalMethod = descriptor.value;
+
+    descriptor.value = function (...args: any[]) {
+      console.log(`[${message}] Executing ${propertyKey}`);
+      return originalMethod.apply(this, args);
+    };
+
+    return descriptor;
+  };
+}
+
+// Usage
+export class Camouflage {
+  @Log('Camouflage')
+  @HandleErrors
+  @Debounce(100)
+  private updateDecorations(): void {
+    // Core logic only, concerns handled by decorators
+  }
+}
+```
+
+**Benefits**:
+
+- ✅ Separation of concerns
+- ✅ Reusable across methods
+- ✅ Easy to add/remove
+- ✅ Clean core logic
+
+**When to Use**:
+
+- Logging
+- Error handling
+- Performance monitoring
+- Debouncing
+- Validation
+
+### 2. Facade Pattern (Configuration)
+
+**Purpose**: Simplify complex API into simple interface.
+
+**Implementation**:
+
+```typescript
+// utils/config.ts - Facade
+export function isEnabled(): boolean {
+  return vscode.workspace.getConfiguration('camouflage').get<boolean>('enabled', true);
+}
+
+export function getHidingStyle(): HiddenTextStyle {
+  return vscode.workspace
+    .getConfiguration('camouflage')
+    .get<HiddenTextStyle>('hiddenTextStyle', 'text');
+}
+
+export function getPatterns(): string[] {
+  return vscode.workspace
+    .getConfiguration('camouflage')
+    .get<string[]>('selectiveHiding.patterns', []);
+}
+
+// Usage - Simple!
+import * as config from '../utils/config';
+
+if (config.isEnabled()) {
+  const style = config.getHidingStyle();
+}
+```
+
+**Benefits**:
+
+- ✅ Hides VS Code API complexity
+- ✅ Consistent access pattern
+- ✅ Easy to mock in tests
+- ✅ Single place for default values
+
+**When to Use**:
+
+- Configuration access
+- API wrappers
+- Complex subsystems
+
+### 3. Strategy Pattern (Text Generation)
+
+**Purpose**: Different algorithms for same task, selectable at runtime.
+
+**Implementation**:
+
+```typescript
+// lib/text-generator.ts
+type GeneratorStrategy = (text: string) => string;
+
+const strategies: Record<HiddenTextStyle, GeneratorStrategy> = {
+  text: (text) => 'camouflage'.repeat(Math.ceil(text.length / 10)),
+  stars: (text) => '*'.repeat(text.length),
+  dotted: (text) => '•'.repeat(text.length),
+  scramble: (text) => scrambleText(text),
+};
+
+export function generateHiddenText(text: string, style: HiddenTextStyle): string {
+  const strategy = strategies[style];
+  if (!strategy) {
+    throw new Error(`Unknown style: ${style}`);
+  }
+  return strategy(text);
+}
+```
+
+**Benefits**:
+
+- ✅ Easy to add new styles
+- ✅ No if/else chains
+- ✅ Each strategy independently testable
+- ✅ Clear separation
+
+**When to Use**:
+
+- Multiple algorithms for same task
+- Behavior selected at runtime
+- Open/Closed principle (open for extension, closed for modification)
+
+### 4. Observer Pattern (Event Handling)
+
+**Purpose**: React to state changes.
+
+**Implementation**:
+
+```typescript
+// VS Code already provides this
+vscode.workspace.onDidChangeConfiguration((event) => {
+  if (event.affectsConfiguration('camouflage')) {
+    // React to configuration change
+    this.reloadConfiguration();
+  }
+});
+
+vscode.window.onDidChangeActiveTextEditor((editor) => {
+  if (editor && isEnvFile(editor.document.fileName)) {
+    // React to editor change
+    this.updateDecorations();
+  }
+});
+```
+
+**Benefits**:
+
+- ✅ Loose coupling
+- ✅ Reactive architecture
+- ✅ Easy to add listeners
+
+**When to Use**:
+
+- Event-driven architecture
+- State synchronization
+- Multiple components need updates
+
+### 5. Singleton Pattern (Extension Instance)
+
+**Purpose**: Single instance of extension core.
+
+**Implementation**:
+
+```typescript
+// extension.ts
+let camouflage: Camouflage | undefined;
+
+export function activate(context: vscode.ExtensionContext): void {
+  if (!camouflage) {
+    camouflage = new Camouflage();
+    camouflage.initialize(context);
+  }
+}
+
+export function deactivate(): void {
+  if (camouflage) {
+    camouflage.dispose();
+    camouflage = undefined;
+  }
+}
+```
+
+**Benefits**:
+
+- ✅ Single source of truth
+- ✅ Controlled access
+- ✅ Resource management
+
+**When to Use**:
+
+- Extension activation
+- Global state management
+- Resource coordination
+
+### 6. Factory Pattern (Decoration Creation)
+
+**Purpose**: Create complex objects with consistent configuration.
+
+**Implementation**:
+
+```typescript
+export class DecorationFactory {
+  static createDecorationType(
+    style: HiddenTextStyle,
+    color: string
+  ): vscode.TextEditorDecorationType {
+    const baseConfig = {
+      color,
+      textDecoration: 'none',
+    };
+
+    const styleConfig = this.getStyleConfig(style);
+
+    return vscode.window.createTextEditorDecorationType({
+      ...baseConfig,
+      ...styleConfig,
+    });
+  }
+
+  private static getStyleConfig(style: HiddenTextStyle) {
+    switch (style) {
+      case 'text':
+        return {
+          letterSpacing: '-0.5em',
+          opacity: '0',
+        };
+      case 'dotted':
+        return {
+          letterSpacing: '0.3em',
+          before: { contentText: '•' },
+        };
+      // ... other styles
+    }
+  }
+}
+```
+
+**Benefits**:
+
+- ✅ Centralized creation logic
+- ✅ Consistent objects
+- ✅ Easy to extend
+
+**When to Use**:
+
+- Complex object creation
+- Multiple variations
+- Configuration-driven creation
+
+## Anti-Patterns to Avoid
+
+### 1. God Object
+
+**Problem**: One class does everything.
+
+```typescript
+// ❌ BAD: God object
+export class Camouflage {
+  // File operations
+  readEnvFile(path: string): string {}
+  writeEnvFile(path: string, content: string): void {}
+
+  // Pattern matching
+  matchPattern(key: string, pattern: string): boolean {}
+  compileRegex(pattern: string): RegExp {}
+
+  // Text generation
+  generateStars(text: string): string {}
+  generateDotted(text: string): string {}
+
+  // Configuration
+  loadConfig(): Config {}
+  saveConfig(config: Config): void {}
+
+  // Decorations
+  updateDecorations(): void {}
+  clearDecorations(): void {}
+
+  // Status bar
+  updateStatusBar(): void {}
+
+  // Commands
+  toggle(): void {}
+  reload(): void {}
+
+  // ... 1000+ lines
+}
+```
+
+**Solution**: Split into focused modules.
+
+```typescript
+// ✅ GOOD: Focused modules
+// core/camouflage.ts - Orchestration only
+export class Camouflage {
+  private updateDecorations(): void {}
+  public toggle(): void {}
+}
+
+// utils/file-utils.ts - File operations
+export function isEnvFile(fileName: string): boolean {}
+
+// utils/pattern-matcher.ts - Pattern matching
+export function matchesAnyPattern(key: string, patterns: string[]): boolean {}
+
+// lib/text-generator.ts - Text generation
+export function generateHiddenText(text: string, style: HiddenTextStyle): string {}
+
+// utils/config.ts - Configuration
+export function isEnabled(): boolean {}
+```
+
+### 2. Callback Hell
+
+**Problem**: Nested callbacks make code unreadable.
+
+```typescript
+// ❌ BAD: Callback hell
+vscode.workspace.onDidChangeConfiguration((event) => {
+  if (event.affectsConfiguration('camouflage')) {
+    getConfiguration((config) => {
+      if (config.enabled) {
+        getActiveEditor((editor) => {
+          if (editor) {
+            getDocument(editor, (doc) => {
+              updateDecorations(doc, () => {
+                console.log('Done'); // 6 levels deep!
+              });
+            });
+          }
+        });
+      }
+    });
+  }
+});
+```
+
+**Solution**: Use async/await and early returns.
+
+```typescript
+// ✅ GOOD: Flat structure
+vscode.workspace.onDidChangeConfiguration(async (event) => {
+  if (!event.affectsConfiguration('camouflage')) return;
+
+  const config = await getConfiguration();
+  if (!config.enabled) return;
+
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) return;
+
+  await updateDecorations(editor.document);
+  console.log('Done');
+});
+```
+
+### 3. Magic Numbers/Strings
+
+**Problem**: Unexplained literals in code.
+
+```typescript
+// ❌ BAD: Magic numbers
+@Debounce(100) // Why 100?
+private updateDecorations(): void { }
+
+if (text.length > 50) { // Why 50?
+  return text.substring(0, 50);
+}
+
+// ❌ BAD: Magic strings
+if (style === 'stars') { } // Typo-prone
+```
+
+**Solution**: Named constants with documentation.
+
+```typescript
+// ✅ GOOD: Named constants
+const DEBOUNCE_MS = 100; // Balance between responsiveness and performance
+const MAX_PREVIEW_LENGTH = 50; // VS Code inline display limit
+
+@Debounce(DEBOUNCE_MS)
+private updateDecorations(): void { }
+
+if (text.length > MAX_PREVIEW_LENGTH) {
+  return text.substring(0, MAX_PREVIEW_LENGTH);
+}
+
+// ✅ GOOD: Enums
+enum HiddenTextStyle {
+  Stars = 'stars',
+  Dotted = 'dotted',
+}
+
+if (style === HiddenTextStyle.Stars) { } // Type-safe!
+```
+
+### 4. Shotgun Surgery
+
+**Problem**: One change requires modifications in many places.
+
+```typescript
+// ❌ BAD: Scattered logic
+// In file A
+if (config.get('hiddenTextStyle') === 'stars') {
+}
+
+// In file B
+const style = config.get('hiddenTextStyle');
+if (style === 'stars') {
+}
+
+// In file C
+switch (config.get('hiddenTextStyle')) {
+  case 'stars':
+    break;
+}
+
+// Adding new style requires changing A, B, C!
+```
+
+**Solution**: Centralize related logic.
+
+```typescript
+// ✅ GOOD: Centralized
+// utils/config.ts
+export function getHidingStyle(): HiddenTextStyle {
+  return vscode.workspace
+    .getConfiguration('camouflage')
+    .get<HiddenTextStyle>('hiddenTextStyle', 'text');
+}
+
+// All files use this function
+const style = config.getHidingStyle();
+```
+
+### 5. Primitive Obsession
+
+**Problem**: Using primitives instead of meaningful types.
+
+```typescript
+// ❌ BAD: Primitive obsession
+function updateDecoration(
+  editor: vscode.TextEditor,
+  line: number,
+  start: number,
+  end: number,
+  style: string,
+  color: string
+) {}
+
+// Calling code is error-prone
+updateDecoration(editor, 5, 10, 20, 'stars', '#FF0000');
+updateDecoration(editor, 10, 5, 20, 'stars', '#FF0000'); // Bug: start > line!
+```
+
+**Solution**: Create meaningful types.
+
+```typescript
+// ✅ GOOD: Rich types
+interface DecorationOptions {
+  editor: vscode.TextEditor;
+  range: vscode.Range;
+  style: HiddenTextStyle;
+  color: string;
+}
+
+function updateDecoration(options: DecorationOptions): void {
+  // Self-documenting
+}
+
+// Calling code is clear
+updateDecoration({
+  editor,
+  range: new vscode.Range(5, 10, 5, 20),
+  style: HiddenTextStyle.Stars,
+  color: '#FF0000',
+});
+```
+
+### 6. Feature Envy
+
+**Problem**: Method uses more data from another class than its own.
+
+```typescript
+// ❌ BAD: Feature envy
+class Camouflage {
+  updateStatusBar(editor: vscode.TextEditor): void {
+    const fileName = editor.document.fileName;
+    const isEnv = fileName.endsWith('.env');
+    const lineCount = editor.document.lineCount;
+    const hiddenCount = this.countHiddenValues(editor.document);
+
+    this.statusBar.text = `${fileName}: ${hiddenCount}/${lineCount}`;
+  }
+
+  private countHiddenValues(document: vscode.TextDocument): number {
+    // Uses document data more than this class's data
+    return document.getText().split('\n').filter(/* ... */).length;
+  }
+}
+```
+
+**Solution**: Move method to appropriate class.
+
+```typescript
+// ✅ GOOD: Data and behavior together
+class EnvDocument {
+  constructor(private document: vscode.TextDocument) {}
+
+  countHiddenValues(): number {
+    return this.document.getText().split('\n').filter(/* ... */).length;
+  }
+
+  getFileName(): string {
+    return this.document.fileName;
+  }
+}
+
+class Camouflage {
+  updateStatusBar(editor: vscode.TextEditor): void {
+    const envDoc = new EnvDocument(editor.document);
+    const hiddenCount = envDoc.countHiddenValues();
+
+    this.statusBar.text = `${envDoc.getFileName()}: ${hiddenCount}`;
+  }
+}
+```
+
+### 7. Premature Optimization
+
+**Problem**: Optimizing before profiling.
+
+```typescript
+// ❌ BAD: Premature optimization
+class RegexCache {
+  private cache = new WeakMap<string, RegExp>();
+  private hitCount = 0;
+  private missCount = 0;
+  private lastCleanup = Date.now();
+
+  get(pattern: string): RegExp {
+    // Complex caching logic for potential future issue
+    if (Date.now() - this.lastCleanup > 10000) {
+      this.cleanup();
+    }
+
+    // ... 50 lines of cache optimization
+  }
+}
+
+// Pattern matching is actually fast enough without cache!
+```
+
+**Solution**: Start simple, optimize when needed.
+
+```typescript
+// ✅ GOOD: Simple first
+function getRegex(pattern: string): RegExp {
+  // Simple and clear
+  return new RegExp(pattern, 'i');
+}
+
+// If profiling shows this is slow, THEN optimize:
+const regexCache = new Map<string, RegExp>();
+
+function getRegex(pattern: string): RegExp {
+  if (!regexCache.has(pattern)) {
+    regexCache.set(pattern, new RegExp(pattern, 'i'));
+  }
+  return regexCache.get(pattern)!;
+}
+```
+
+### 8. Error Swallowing
+
+**Problem**: Catching errors without handling them.
+
+```typescript
+// ❌ BAD: Error swallowing
+try {
+  updateDecorations();
+} catch {
+  // Silent failure - user has no idea something went wrong
+}
+
+// ❌ BAD: Logging but not handling
+try {
+  updateDecorations();
+} catch (error) {
+  console.log(error); // Logged but not handled
+}
+```
+
+**Solution**: Handle errors appropriately.
+
+```typescript
+// ✅ GOOD: Proper error handling
+try {
+  updateDecorations();
+} catch (error) {
+  console.error('[Camouflage] Failed to update decorations:', error);
+  vscode.window.showErrorMessage(
+    'Failed to update decorations. Check output for details.'
+  );
+
+  // Attempt recovery
+  this.resetDecorations();
+}
+
+// ✅ GOOD: Use decorator for consistent handling
+@HandleErrors
+private updateDecorations(): void {
+  // Errors handled by decorator
+}
+```
+
+## SOLID Principles
+
+### Single Responsibility Principle
+
+Each class/module has one reason to change.
+
+```typescript
+// ✅ GOOD: Single responsibility
+// pattern-matcher.ts - Only pattern matching
+export function matchesAnyPattern(key: string, patterns: string[]): boolean {
+  return patterns.some((pattern) => matchPattern(key, pattern));
+}
+
+// text-generator.ts - Only text generation
+export function generateHiddenText(text: string, style: HiddenTextStyle): string {
+  return strategies[style](text);
+}
+
+// file-utils.ts - Only file operations
+export function isEnvFile(fileName: string): boolean {
+  return ENV_PATTERNS.some((pattern) => fileName.endsWith(pattern));
+}
+```
+
+### Open/Closed Principle
+
+Open for extension, closed for modification.
+
+```typescript
+// ✅ GOOD: Open/Closed
+// Adding new hiding style doesn't modify existing code
+const strategies: Record<HiddenTextStyle, GeneratorStrategy> = {
+  text: (text) => 'camouflage'.repeat(Math.ceil(text.length / 10)),
+  stars: (text) => '*'.repeat(text.length),
+  dotted: (text) => '•'.repeat(text.length),
+  // NEW: Just add here, no modification to existing strategies
+  custom: (text) => customTransform(text),
+};
+```
+
+### Liskov Substitution Principle
+
+Derived classes should be substitutable for base classes.
+
+```typescript
+// ✅ GOOD: LSP
+interface TextTransformer {
+  transform(text: string): string;
+}
+
+class StarsTransformer implements TextTransformer {
+  transform(text: string): string {
+    return '*'.repeat(text.length);
+  }
+}
+
+class DottedTransformer implements TextTransformer {
+  transform(text: string): string {
+    return '•'.repeat(text.length);
+  }
+}
+
+// Both can be used interchangeably
+function applyTransform(text: string, transformer: TextTransformer): string {
+  return transformer.transform(text);
+}
+```
+
+### Interface Segregation Principle
+
+Clients shouldn't depend on interfaces they don't use.
+
+```typescript
+// ❌ BAD: Fat interface
+interface Camouflage {
+  toggle(): void;
+  reload(): void;
+  updateDecorations(): void;
+  updateStatusBar(): void;
+  readConfig(): Config;
+  // Not all clients need all methods!
+}
+
+// ✅ GOOD: Segregated interfaces
+interface Toggleable {
+  toggle(): void;
+}
+
+interface Reloadable {
+  reload(): void;
+}
+
+interface Decoratable {
+  updateDecorations(): void;
+}
+
+// Clients depend only on what they need
+class StatusBarManager {
+  constructor(private toggleable: Toggleable) {
+    // Only depends on toggle, not everything
+  }
+}
+```
+
+### Dependency Inversion Principle
+
+Depend on abstractions, not concretions.
+
+```typescript
+// ❌ BAD: Depends on concrete class
+class Camouflage {
+  private config: VsCodeConfiguration; // Concrete VS Code API
+
+  constructor() {
+    this.config = new VsCodeConfiguration();
+  }
+}
+
+// ✅ GOOD: Depends on abstraction
+interface ConfigProvider {
+  isEnabled(): boolean;
+  getHidingStyle(): HiddenTextStyle;
+}
+
+class Camouflage {
+  constructor(private config: ConfigProvider) {
+    // Can be any implementation (VS Code, file, test mock, etc.)
+  }
+}
+```
+
+## When to Apply Patterns
+
+✅ **Use patterns when**:
+
+- Code will be extended in predictable ways
+- Similar logic appears in multiple places
+- Testing is difficult without abstraction
+- Team agrees on the pattern
+
+❌ **Don't use patterns when**:
+
+- Code is simple and unlikely to change
+- Pattern adds more complexity than it removes
+- Team is unfamiliar with the pattern
+- Premature abstraction
+
+**Remember**: Patterns are tools, not rules. Use them when they make code better, not just to use them.
