@@ -2,7 +2,7 @@
   "name": "camouflage",
   "displayName": "Camouflage",
   "description": "Hide sensitive values in configuration files (.env, .sh, .json, .yaml, .properties, .toml)",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "publisher": "zeybek",
   "author": {
     "name": "Ahmet Zeybek",

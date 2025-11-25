@@ -1,3 +1,13 @@
+# [1.2.0](https://github.com/zeybek/camouflage/compare/v1.1.2...v1.2.0) (2025-11-25)
+
+### Features
+
+- **config:** add file exclusion feature ([6e29c86](https://github.com/zeybek/camouflage/commit/6e29c8628acf49ce64f7321e65d5953f6c96f721))
+- **parser:** add indented shell script support ([62bc04f](https://github.com/zeybek/camouflage/commit/62bc04fb9a1675b20f1167b68900f6642951be63))
+- **parser:** add multi-format parser support ([d70dc7c](https://github.com/zeybek/camouflage/commit/d70dc7c81ec8ba004e1cccedfcbf2bc1c11a21de)), closes [#8](https://github.com/zeybek/camouflage/issues/8)
+- **parser:** add nested key support for JSON and YAML files ([49f547a](https://github.com/zeybek/camouflage/commit/49f547aaf49baf331ba33fd16e75515f1d8495a5))
+- **ui:** organize context menu under single Camouflage submenu ([250f04c](https://github.com/zeybek/camouflage/commit/250f04c5086efc87a331e6c3dbdb0660072e5ec4))
+
 ## [1.1.2](https://github.com/zeybek/camouflage/compare/v1.1.1...v1.1.2) (2025-11-23)
 
 ### Bug Fixes
