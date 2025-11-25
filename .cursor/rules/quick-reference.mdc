@@ -1,5 +1,5 @@
 ---
-alwaysApply: false
+description: Quick reference for commands, key files, common tasks, testing patterns, and debugging tips
 ---
 
 # Quick Reference
@@ -16,10 +16,16 @@ npm test -- --watch  # Watch mode tests
 npm run lint         # Run ESLint
 npm run format       # Format with Prettier
 
-# Extension
+# Extension Keyboard Shortcuts
 F5                   # Launch Extension Development Host
-Ctrl+Shift+H         # Toggle masking (in .env files)
-Cmd+Shift+H          # Toggle masking (macOS)
+Ctrl+Shift+H         # Hide values (Windows/Linux)
+Cmd+Shift+H          # Hide values (macOS)
+Ctrl+Shift+R         # Reveal values (Windows/Linux)
+Cmd+Shift+R          # Reveal values (macOS)
+Ctrl+Shift+T         # Toggle value at cursor (Windows/Linux)
+Cmd+Shift+T          # Toggle value at cursor (macOS)
+Ctrl+Shift+S         # Toggle selective mode (Windows/Linux)
+Cmd+Shift+S          # Toggle selective mode (macOS)
 
 # Release (automated)
 git commit -m "feat: new feature"  # Semantic commit
@@ -28,14 +34,29 @@ git push origin main               # Auto-release on merge
 
 ## Key Files
 
-| File                     | Purpose               |
-| ------------------------ | --------------------- |
-| `src/extension.ts`       | Extension entry point |
-| `src/core/camouflage.ts` | Main business logic   |
-| `src/utils/config.ts`    | Configuration facade  |
-| `package.json`           | Extension manifest    |
-| `tsconfig.json`          | TypeScript config     |
-| `jest.config.js`         | Test config           |
+| File                       | Purpose                              |
+| -------------------------- | ------------------------------------ |
+| `src/extension.ts`         | Extension entry point & commands     |
+| `src/core/camouflage.ts`   | Main business logic & decorations    |
+| `src/parsers/index.ts`     | Parser registry & factory            |
+| `src/parsers/base-parser.ts` | Abstract parser base               |
+| `src/utils/config.ts`      | Configuration facade & file exclusion|
+| `src/utils/file.ts`        | File utilities & format detection    |
+| `package.json`             | Extension manifest & settings schema |
+| `tsconfig.json`            | TypeScript config                    |
+| `jest.config.js`           | Test config                          |
+| `examples/`                | Example config files for all formats |
+
+## Supported File Formats
+
+| Format     | Extensions                          | Parser Class        |
+| ---------- | ----------------------------------- | ------------------- |
+| ENV        | `.env`, `.env.*`, `*.env`, `.envrc` | `EnvParser`         |
+| Shell      | `.sh`                               | `EnvParser`         |
+| JSON       | `.json`                             | `JsonParser`        |
+| YAML       | `.yaml`, `.yml`                     | `YamlParser`        |
+| Properties | `.properties`, `.ini`, `.conf`      | `PropertiesParser`  |
+| TOML       | `.toml`                             | `TomlParser`        |
 
 ## Dependency Flow
 
@@ -44,17 +65,60 @@ extension.ts
     ↓
 core/camouflage.ts
     ↓
-lib/ + utils/
+parsers/ + lib/ + utils/
 ```
 
 **Rules**:
 
+- `parsers/` → File format parsing (Strategy Pattern)
 - `lib/` → Pure functions only
 - `utils/` → Can use VS Code API
 - `core/` → Orchestrates everything
 - No circular dependencies
 
 ## Common Tasks
+
+### Add New Parser
+
+1. Create parser file in `src/parsers/`:
+
+```typescript
+import { BaseParser } from './base-parser';
+import type { ParsedVariable } from './types';
+
+export class NewParser extends BaseParser {
+  readonly name = 'new';
+  readonly supportedExtensions = ['.new'];
+
+  parse(content: string): ParsedVariable[] {
+    const variables: ParsedVariable[] = [];
+    // Parse content and populate variables
+    return variables;
+  }
+}
+```
+
+2. Register in `src/parsers/index.ts`:
+
+```typescript
+import { NewParser } from './new-parser';
+
+// In ParserRegistry constructor:
+this.registerParser(new NewParser());
+```
+
+3. Update `package.json` (enabledParsers enum):
+
+```json
+"camouflage.files.enabledParsers": {
+  "items": {
+    "enum": ["env", "json", "yaml", "properties", "toml", "new"]
+  }
+}
+```
+
+4. Add tests in `src/parsers/__tests__/new-parser.test.ts`
+5. Update README with examples
 
 ### Add New Hiding Style
 
@@ -178,7 +242,54 @@ describe('functionName', () => {
 });
 ```
 
+### Parser Test Template
+
+```typescript
+describe('NewParser', () => {
+  let parser: NewParser;
+
+  beforeEach(() => {
+    parser = new NewParser();
+  });
+
+  describe('canParse', () => {
+    it('should return true for .new files', () => {
+      expect(parser.canParse('config.new')).toBe(true);
+    });
+
+    it('should return false for other files', () => {
+      expect(parser.canParse('config.txt')).toBe(false);
+    });
+  });
+
+  describe('parse', () => {
+    it('should parse key-value pairs', () => {
+      const content = 'key=value';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('key');
+      expect(result[0].value).toBe('value');
+    });
+  });
+});
+```
+
 ## Design Patterns Used
+
+### Strategy (Parsers)
+
+```typescript
+// Parser interface
+interface Parser {
+  parse(content: string): ParsedVariable[];
+  canParse(fileName: string): boolean;
+}
+
+// Registry selects parser by file type
+const parser = parserRegistry.findParserForFile(fileName);
+const variables = parser.parse(content);
+```
 
 ### Decorator
 
@@ -196,19 +307,6 @@ import * as config from '../utils/config';
 
 if (config.isEnabled()) {
   const style = config.getHidingStyle();
-}
-```
-
-### Strategy
-
-```typescript
-const strategies: Record<HiddenTextStyle, GeneratorStrategy> = {
-  text: (text) => 'camouflage'.repeat(Math.ceil(text.length / 10)),
-  stars: (text) => '*'.repeat(text.length),
-};
-
-export function generateHiddenText(text: string, style: HiddenTextStyle): string {
-  return strategies[style](text);
 }
 ```
 
@@ -243,7 +341,7 @@ vscode.workspace.onDidChangeTextDocument((event) => {
 
 // Editor changes
 vscode.window.onDidChangeActiveTextEditor((editor) => {
-  if (editor && isEnvFile(editor.document.fileName)) {
+  if (editor && isSupportedFile(editor.document.fileName)) {
     updateDecorations();
   }
 });
@@ -298,20 +396,20 @@ const value = getValue();
 
 ```bash
 # Feature (minor version bump)
-git commit -m "feat(core): add custom hiding characters"
+git commit -m "feat(parsers): add TOML parser support"
 
 # Bug fix (patch version bump)
-git commit -m "fix(patterns): escape special regex characters"
+git commit -m "fix(json-parser): handle escaped quotes"
 
 # Breaking change (major version bump)
-git commit -m "feat(core): redesign pattern API
+git commit -m "feat(core): redesign parser API
 
-BREAKING CHANGE: matchPattern now returns object instead of boolean"
+BREAKING CHANGE: Parser interface changed"
 
 # Other types (no version bump)
 git commit -m "docs: update README examples"
-git commit -m "test: add pattern matching tests"
-git commit -m "refactor(core): extract decoration logic"
+git commit -m "test: add JSON parser tests"
+git commit -m "refactor(parsers): extract base parser"
 git commit -m "chore: update dependencies"
 ```
 
@@ -334,9 +432,17 @@ git commit -m "chore: update dependencies"
 
 **Decorations not showing**
 
-- Check if file is recognized as .env
+- Check if file is recognized (use `isSupportedFile()`)
+- Verify parser returns correct positions
 - Verify configuration is enabled
 - Look for errors in console
+
+**Parser not working**
+
+- Check `canParse()` returns true for file
+- Verify regex patterns are correct
+- Check `startIndex` and `endIndex` positions
+- Add console.log in parse method
 
 **Tests failing**
 
@@ -359,7 +465,7 @@ const text = editor?.document?.getText();
 
 // ✅ Early returns to avoid nesting
 if (!editor) return;
-if (!isEnvFile(editor.document.fileName)) return;
+if (!isSupportedFile(editor.document.fileName)) return;
 
 // ✅ Batch operations
 const ranges = getAllRanges();
@@ -411,20 +517,21 @@ const decorationType = vscode.window.createTextEditorDecorationType({
 editor.setDecorations(decorationType, [range]);
 ```
 
-## File Patterns
+## File Detection
 
 ```typescript
-// .env file detection
-const ENV_FILE_PATTERNS = [
-  '.env',
-  '.env.local',
-  '.env.development',
-  '.env.test',
-  '.env.production',
-];
+import { getParserRegistry, isSupportedFile } from '../parsers';
 
-export function isEnvFile(fileName: string): boolean {
-  return ENV_FILE_PATTERNS.some((pattern) => fileName.endsWith(pattern));
+// Check if file is supported
+if (isSupportedFile(fileName)) {
+  // File can be parsed
+}
+
+// Get parser for file
+const registry = getParserRegistry();
+const parser = registry.findParserForFile(fileName);
+if (parser) {
+  const variables = parser.parse(content);
 }
 ```
 
@@ -433,6 +540,9 @@ export function isEnvFile(fileName: string): boolean {
 ```typescript
 // Env variable pattern: KEY=VALUE
 const ENV_VAR_REGEX = /^([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$/;
+
+// JSON string value: "key": "value"
+const JSON_STRING_REGEX = /"([^"]+)"\s*:\s*"([^"]*)"/g;
 
 // Wildcard pattern conversion
 const pattern = '*API*';
@@ -453,39 +563,28 @@ export interface InterfaceName {}
 export default function () {} // No
 ```
 
-## TypeScript Config
-
-```json
-{
-  "compilerOptions": {
-    "module": "commonjs",
-    "target": "ES2020",
-    "outDir": "dist",
-    "lib": ["ES2020"],
-    "sourceMap": true,
-    "rootDir": "src",
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "esModuleInterop": true
-  }
-}
-```
-
 ## VS Code Extension Manifest
 
 ```json
 {
   "name": "camouflage",
   "displayName": "Camouflage",
-  "description": "Hide sensitive environment variables",
-  "version": "1.1.1",
-  "publisher": "publisher-name",
+  "description": "Hide sensitive values in configuration files",
+  "version": "1.1.2",
+  "publisher": "zeybek",
   "engines": {
-    "vscode": "^1.70.0"
+    "vscode": "^1.96.0"
   },
   "categories": ["Other"],
-  "activationEvents": ["onLanguage:dotenv"],
+  "activationEvents": [
+    "onLanguage:dotenv",
+    "onLanguage:properties",
+    "onLanguage:plaintext",
+    "onLanguage:json",
+    "onLanguage:yaml",
+    "onLanguage:toml",
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [],

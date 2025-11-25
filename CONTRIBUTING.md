@@ -2,7 +2,7 @@
 
 First off, thanks for taking the time to contribute! ❤️
 
-Camouflage is a VS Code extension that helps protect sensitive environment variables by hiding their values in `.env` files. Your contributions help make this tool better for everyone who wants to safely share their screen or take screenshots without exposing sensitive information.
+Camouflage is a VS Code extension that helps protect sensitive values in configuration files by hiding them visually. It supports multiple formats including `.env`, `.json`, `.yaml`, `.properties`, `.toml`, and `.sh` files. Your contributions help make this tool better for everyone who wants to safely share their screen or take screenshots without exposing sensitive information.
 
 All types of contributions are encouraged and valued. See the [Table of Contents](#table-of-contents) for different ways to help and details about how this project handles them. Please make sure to read the relevant section before making your contribution. It will make it a lot easier for us maintainers and smooth out the experience for all involved. The community looks forward to your contributions. 🎉
 
@@ -148,9 +148,28 @@ While the prerequisites above must be satisfied prior to having your pull reques
 ### Testing Your Changes
 
 1. Press `F5` in VS Code to launch a new window with your extension loaded
-2. Create or open a `.env` file to test your changes
+2. Open files from the `examples/` directory to test different formats:
+   - `sample.env`, `.env.local`, `.env.development` - Environment files
+   - `config.json` - JSON with nested keys
+   - `config.yaml`, `config.yml` - YAML with nested keys
+   - `app.properties`, `settings.ini`, `app.conf` - Properties formats
+   - `config.toml` - TOML with sections
+   - `script.sh` - Shell scripts with exports
 3. Make changes to the code and reload the VS Code window to see the effects:
    - Press `Ctrl+R` (Windows/Linux) or `Cmd+R` (Mac) to reload the window
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
 
 ## Styleguides
 
@@ -198,15 +217,25 @@ We use [Conventional Commits](https://www.conventionalcommits.org/) for commit m
 The project is structured as follows:
 
 - `src/`: Source code
-  - `core/`: Core functionality
-  - `decorators/`: Text decorators for hiding values
-  - `lib/`: Utility libraries
-  - `utils/`: Helper functions
+  - `core/`: Core functionality (Camouflage class, types)
+  - `decorators/`: Method decorators (debounce, error handling, logging)
+  - `parsers/`: Multi-format parsers
+    - `base-parser.ts`: Abstract base class for parsers
+    - `env-parser.ts`: Parser for .env, .envrc, .sh files
+    - `json-parser.ts`: Parser for .json files (with nested key support)
+    - `yaml-parser.ts`: Parser for .yaml, .yml files (with nested key support)
+    - `properties-parser.ts`: Parser for .properties, .ini, .conf files
+    - `toml-parser.ts`: Parser for .toml files
+    - `index.ts`: Parser registry and factory
+  - `lib/`: Utility libraries (text generator)
+  - `utils/`: Helper functions (config, file, pattern-matcher)
   - `extension.ts`: Main extension entry point
+- `examples/`: Example configuration files for testing
 - `.github/`: GitHub-specific files
   - `ISSUE_TEMPLATE/`: Issue templates
   - `PULL_REQUEST_TEMPLATE/`: PR templates
   - `workflows/`: GitHub Actions workflows
+- `.cursor/rules/`: AI assistant guidelines and project documentation
 - `assets/`: Icons and images
 - `images/`: Screenshots and documentation images
 

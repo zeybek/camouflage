@@ -1,0 +1,45 @@
+# TOML Configuration Example
+# This file demonstrates how Camouflage hides values in TOML files
+
+apiKey = "sk-1234567890abcdef"
+secretKey = "super_secret_value_here"
+
+[database]
+host = "localhost"
+port = 5432
+username = "admin"
+password = "very_secure_password"
+connectionString = "postgresql://user:password@localhost:5432/mydb"
+
+[authentication]
+jwtSecret = "my-jwt-secret-key-here"
+tokenExpiry = "1h"
+
+[authentication.oauth]
+clientId = "oauth-client-id-12345"
+clientSecret = "oauth-client-secret-67890"
+
+[services.stripe]
+apiKey = "sk_live_abcdef123456"
+webhookSecret = "whsec_abcdef123456"
+
+[services.sendgrid]
+apiKey = "SG.xxxxxxxxxxxx"
+
+[services.aws]
+accessKeyId = "AKIAIOSFODNN7EXAMPLE"
+secretAccessKey = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+region = "us-east-1"
+
+[publicConfig]
+appName = "My Application"
+version = "1.0.0"
+publicUrl = "https://example.com"
+
+[environments.development]
+debug = true
+apiUrl = "http://localhost:3000"
+
+[environments.production]
+debug = false
+apiUrl = "https://api.example.com"

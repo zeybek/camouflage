@@ -1,5 +1,6 @@
 ---
-alwaysApply: false
+description: Project architecture, directory structure, module responsibilities, and dependency rules
+globs: ["src/**/*.ts"]
 ---
 
 # Project Architecture
@@ -14,14 +15,24 @@ camouflage/
 │   ├── lib/               # Pure functions
 │   │   ├── decorators.ts  # Method decorators
 │   │   └── text-generator.ts # Text transformation
+│   ├── parsers/           # Multi-format parsers
+│   │   ├── types.ts       # Parser interfaces
+│   │   ├── base-parser.ts # Abstract base class
+│   │   ├── env-parser.ts  # ENV/Shell parser
+│   │   ├── json-parser.ts # JSON parser (nested)
+│   │   ├── yaml-parser.ts # YAML parser (nested)
+│   │   ├── properties-parser.ts # Properties parser
+│   │   ├── toml-parser.ts # TOML parser
+│   │   └── index.ts       # Parser registry
 │   ├── utils/             # Helper utilities
 │   │   ├── config.ts      # Configuration facade
-│   │   ├── file-utils.ts  # File operations
+│   │   ├── file.ts        # File operations
 │   │   ├── pattern-matcher.ts # Pattern matching
 │   │   └── validator.ts   # Input validation
 │   ├── __tests__/         # Test files (mirrors src)
 │   │   ├── core/
 │   │   ├── lib/
+│   │   ├── parsers/
 │   │   └── utils/
 │   ├── __mocks__/         # Test mocks
 │   │   └── vscode.ts      # VS Code API mock
@@ -50,8 +61,34 @@ camouflage/
 - Manage extension state
 - Status bar updates
 - Command execution
+- Delegate parsing to parser registry
 
-**Dependencies**: Can import from `lib/`, `utils/`, and VS Code API
+**Dependencies**: Can import from `lib/`, `utils/`, `parsers/`, and VS Code API
+
+### Parsers Module (`src/parsers/`)
+
+**Purpose**: Multi-format file parsing with Strategy Pattern
+
+**Files**:
+
+- `types.ts`: Parser interface and type definitions
+- `base-parser.ts`: Abstract base class with common functionality
+- `env-parser.ts`: ENV, Shell script, .envrc parser
+- `json-parser.ts`: JSON parser with nested key support
+- `yaml-parser.ts`: YAML parser with nested key support
+- `properties-parser.ts`: Properties, INI, conf parser
+- `toml-parser.ts`: TOML parser
+- `index.ts`: Parser registry and factory
+
+**Rules**:
+
+- ✅ Each parser extends `BaseParser`
+- ✅ Parsers implement `Parser` interface
+- ✅ Parsers are stateless (options via constructor)
+- ✅ Registry handles parser selection by file extension
+- ✅ Nested keys returned as dot-separated paths
+
+**Dependencies**: Can only import Node.js built-ins and types
 
 ### Library Module (`src/lib/`)
 
@@ -78,7 +115,7 @@ camouflage/
 **Files**:
 
 - `config.ts`: Configuration access facade
-- `file-utils.ts`: File system operations
+- `file.ts`: File system operations
 - `pattern-matcher.ts`: Pattern matching logic
 - `validator.ts`: Input validation
 
@@ -89,7 +126,7 @@ camouflage/
 - ✅ Should be stateless where possible
 - ✅ Each file has single responsibility
 
-**Dependencies**: Can import from `lib/` and VS Code API, but not `core/`
+**Dependencies**: Can import from `lib/`, `parsers/`, and VS Code API, but not `core/`
 
 ### Tests Module (`src/__tests__/`)
 
@@ -110,15 +147,16 @@ camouflage/
 ### Allowed Dependencies
 
 ```
-extension.ts → core/ → lib/ + utils/
+extension.ts → core/ → lib/ + utils/ + parsers/
                 ↓
             VS Code API
 ```
 
 ### Forbidden Dependencies
 
-- ❌ `lib/` MUST NOT import from `core/` or `utils/`
+- ❌ `lib/` MUST NOT import from `core/`, `utils/`, or `parsers/`
 - ❌ `utils/` MUST NOT import from `core/`
+- ❌ `parsers/` MUST NOT import from `core/` or `utils/`
 - ❌ Circular dependencies between modules
 - ❌ Direct file system access in `lib/`
 
@@ -153,11 +191,12 @@ extension.ts → core/ → lib/ + utils/
 **Example**:
 
 ```typescript
-import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { generateHiddenText } from '../lib/text-generator';
-import { isEnvFile } from '../utils/file-utils';
-import type { HiddenTextStyle } from '../types';
+import { getParserRegistry } from '../parsers';
+import { isSupportedFile } from '../utils/file';
+import type { ParsedVariable } from '../parsers/types';
 ```
 
 ## State Management
@@ -194,13 +233,19 @@ Each layer handles errors differently:
    - Propagate critical errors up
    - Handle recoverable errors
 
-3. **Utils Layer** (`utils/`):
+3. **Parser Layer** (`parsers/`):
+
+   - Validate file content
+   - Return empty array on parse errors
+   - Log parsing issues
+
+4. **Utils Layer** (`utils/`):
 
    - Validate inputs
    - Throw descriptive errors
    - No error suppression
 
-4. **Lib Layer** (`lib/`):
+5. **Lib Layer** (`lib/`):
    - Pure functions - no try/catch
    - Validate inputs with types
    - Let caller handle errors
@@ -210,6 +255,7 @@ Each layer handles errors differently:
 ### Hot Paths (must be fast)
 
 - `updateDecorations()`: Called on every text change
+- `parser.parse()`: Called for every file update
 - `generateHiddenText()`: Called for every masked value
 - `matchesAnyPattern()`: Called for every env var
 
@@ -219,14 +265,26 @@ Each layer handles errors differently:
 - Debounce frequent operations
 - Use `@Debounce` decorator
 - Minimize DOM operations
+- Parser selection by extension (O(1) lookup)
 
 ### Cold Paths (can be slower)
 
 - Extension activation
 - Configuration changes
 - Command execution
+- Parser registry initialization
 
 ## Extension Points
+
+### Adding New Parser
+
+1. Create new parser file in `src/parsers/` extending `BaseParser`
+2. Implement `parse()` method returning `ParsedVariable[]`
+3. Define `supportedExtensions` array
+4. Register parser in `src/parsers/index.ts`
+5. Add tests in `src/parsers/__tests__/`
+6. Update configuration in `package.json` (enabledParsers enum)
+7. Update README with new format examples
 
 ### Adding New Hiding Style
 

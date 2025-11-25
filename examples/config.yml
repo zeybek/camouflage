@@ -1,0 +1,43 @@
+# config.yml Example
+# YAML configuration with .yml extension
+
+app:
+  name: MyApplication
+  version: 2.0.0
+  secret_key: yml-app-secret-key-here
+
+database:
+  primary:
+    host: db.example.com
+    port: 5432
+    username: yml_db_user
+    password: yml_db_password_secure
+    database: production
+  replica:
+    host: db-replica.example.com
+    password: yml_replica_password
+
+api:
+  keys:
+    public: pk_live_public_key
+    private: sk_live_private_secret_key
+  endpoints:
+    auth: https://auth.example.com
+    data: https://api.example.com
+
+services:
+  stripe:
+    api_key: sk_live_stripe_yml_key
+    webhook_secret: whsec_stripe_webhook_secret
+  sendgrid:
+    api_key: SG.yml_sendgrid_api_key
+  aws:
+    access_key: AKIAEXAMPLEYML
+    secret_key: yml_aws_secret_key_example
+
+security:
+  jwt:
+    secret: yml-jwt-signing-secret
+    expiry: 86400
+  encryption:
+    key: yml-aes-256-encryption-key

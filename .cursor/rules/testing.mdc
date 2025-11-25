@@ -1,5 +1,6 @@
 ---
-alwaysApply: false
+description: Testing guidelines, test structure, coverage requirements, mocking patterns, and VS Code extension testing
+globs: ["src/**/*.test.ts", "src/__tests__/**/*", "jest.config.js"]
 ---
 
 # Testing Guidelines

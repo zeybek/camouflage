@@ -1,5 +1,6 @@
 ---
-alwaysApply: false
+description: VS Code extension development rules - lifecycle, API usage, decorations, commands, and configuration
+globs: ["src/extension.ts", "src/core/**/*.ts", "package.json"]
 ---
 
 # VS Code Extension Development Rules
@@ -13,9 +14,16 @@ The extension activates when specified events occur (defined in `package.json`):
 ```json
 "activationEvents": [
   "onLanguage:dotenv",
-  "onCommand:camouflage.toggle"
+  "onLanguage:properties",
+  "onLanguage:plaintext",
+  "onLanguage:json",
+  "onLanguage:yaml",
+  "onLanguage:toml",
+  "onStartupFinished"
 ]
 ```
+
+This enables the extension for all supported configuration file formats.
 
 **Rules**:
 

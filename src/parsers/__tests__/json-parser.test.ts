@@ -1,0 +1,116 @@
+import { JsonParser } from '../json-parser';
+
+describe('JsonParser', () => {
+  let parser: JsonParser;
+
+  beforeEach(() => {
+    parser = new JsonParser();
+  });
+
+  describe('canParse', () => {
+    it('should return true for .json files', () => {
+      expect(parser.canParse('config.json')).toBe(true);
+      expect(parser.canParse('package.json')).toBe(true);
+      expect(parser.canParse('/path/to/settings.json')).toBe(true);
+    });
+
+    it('should return false for other files', () => {
+      expect(parser.canParse('.env')).toBe(false);
+      expect(parser.canParse('config.yaml')).toBe(false);
+    });
+  });
+
+  describe('parse', () => {
+    it('should parse simple key-value pairs', () => {
+      const content = '{"api_key": "secret123", "db_host": "localhost"}';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].key).toBe('api_key');
+      expect(result[0].value).toBe('secret123');
+      expect(result[1].key).toBe('db_host');
+      expect(result[1].value).toBe('localhost');
+    });
+
+    it('should parse nested objects', () => {
+      const content = `{
+        "database": {
+          "host": "localhost",
+          "password": "secret"
+        }
+      }`;
+      const result = parser.parse(content);
+
+      // Should find root level and nested values
+      const passwordVar = result.find((v) => v.key === 'database.password');
+      expect(passwordVar).toBeDefined();
+      expect(passwordVar?.value).toBe('secret');
+      expect(passwordVar?.isNested).toBe(true);
+    });
+
+    it('should handle deeply nested objects', () => {
+      const content = `{
+        "level1": {
+          "level2": {
+            "level3": {
+              "secret": "deep_value"
+            }
+          }
+        }
+      }`;
+      const result = parser.parse(content);
+
+      const deepVar = result.find((v) => v.key === 'level1.level2.level3.secret');
+      expect(deepVar).toBeDefined();
+      expect(deepVar?.value).toBe('deep_value');
+    });
+
+    it('should respect maxNestedDepth option', () => {
+      const parserWithLowDepth = new JsonParser({ maxNestedDepth: 1 });
+      const content = `{
+        "level1": {
+          "level2": {
+            "secret": "should_not_find"
+          }
+        }
+      }`;
+      const result = parserWithLowDepth.parse(content);
+
+      const deepVar = result.find((v) => v.key.includes('level2.secret'));
+      expect(deepVar).toBeUndefined();
+    });
+
+    it('should calculate correct positions', () => {
+      const content = '{"key": "value"}';
+      const result = parser.parse(content);
+
+      expect(result[0].startIndex).toBe(9); // Position after opening quote of value
+      expect(result[0].endIndex).toBe(14); // End of 'value'
+    });
+
+    it('should handle escaped characters in values', () => {
+      const content = '{"message": "Hello World"}';
+      const result = parser.parse(content);
+
+      expect(result[0].value).toBe('Hello World');
+    });
+
+    it('should ignore non-string values', () => {
+      const content = '{"count": 42, "enabled": true, "name": "test"}';
+      const result = parser.parse(content);
+
+      // Should only find string values
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('name');
+    });
+
+    it('should handle invalid JSON gracefully', () => {
+      const content = '{"key": "value"'; // Missing closing brace
+      const result = parser.parse(content);
+
+      // Should still find the key-value pair using regex fallback
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('key');
+    });
+  });
+});

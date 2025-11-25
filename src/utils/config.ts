@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ParserType } from '../parsers/types';
 
 const CONFIG_SECTION = 'camouflage';
 
@@ -29,7 +30,16 @@ export function isAutoHideEnabled(): boolean {
 export function getFilePatterns(): string[] {
   return vscode.workspace
     .getConfiguration(CONFIG_SECTION)
-    .get('files.patterns', ['.env*', '*.env']);
+    .get('files.patterns', [
+      '.env*',
+      '*.env',
+      '*.sh',
+      '*.json',
+      '*.yaml',
+      '*.yml',
+      '*.properties',
+      '*.toml',
+    ]);
 }
 
 /**
@@ -143,4 +153,102 @@ export function isSelectiveHidingEnabled(): boolean {
  */
 export function getAppearanceStyle(): string {
   return vscode.workspace.getConfiguration(CONFIG_SECTION).get('appearance.style', 'text');
+}
+
+// ============================================================================
+// Parser Configuration
+// ============================================================================
+
+/**
+ * Get enabled parsers
+ */
+export function getEnabledParsers(): ParserType[] {
+  return vscode.workspace
+    .getConfiguration(CONFIG_SECTION)
+    .get('parsers.enabled', ['env', 'json', 'yaml', 'properties', 'toml']);
+}
+
+/**
+ * Get JSON parser nested depth
+ */
+export function getJsonNestedDepth(): number {
+  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('parsers.json.nestedDepth', 10);
+}
+
+/**
+ * Get YAML parser nested depth
+ */
+export function getYamlNestedDepth(): number {
+  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('parsers.yaml.nestedDepth', 10);
+}
+
+/**
+ * Check if a specific parser is enabled
+ */
+export function isParserEnabled(parserType: ParserType): boolean {
+  const enabledParsers = getEnabledParsers();
+  return enabledParsers.includes(parserType);
+}
+
+// ============================================================================
+// File Exclusion
+// ============================================================================
+
+/**
+ * Get list of excluded files
+ */
+export function getExcludedFiles(): string[] {
+  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('files.excludedFiles', []);
+}
+
+/**
+ * Check if a file is excluded
+ */
+export function isFileExcluded(filePath: string): boolean {
+  const excludedFiles = getExcludedFiles();
+  const normalizedPath = filePath.replace(/\\/g, '/');
+
+  return excludedFiles.some((excluded) => {
+    const normalizedExcluded = excluded.replace(/\\/g, '/');
+    // Check exact match or if path ends with the excluded pattern
+    return (
+      normalizedPath === normalizedExcluded ||
+      normalizedPath.endsWith('/' + normalizedExcluded) ||
+      normalizedPath.endsWith(normalizedExcluded)
+    );
+  });
+}
+
+/**
+ * Add a file to the excluded list
+ */
+export async function addExcludedFile(filePath: string): Promise<void> {
+  const excludedFiles = getExcludedFiles();
+  const normalizedPath = filePath.replace(/\\/g, '/');
+
+  if (!excludedFiles.includes(normalizedPath)) {
+    excludedFiles.push(normalizedPath);
+    await getConfig().update('files.excludedFiles', excludedFiles, true);
+  }
+}
+
+/**
+ * Remove a file from the excluded list
+ */
+export async function removeExcludedFile(filePath: string): Promise<void> {
+  const excludedFiles = getExcludedFiles();
+  const normalizedPath = filePath.replace(/\\/g, '/');
+
+  const filtered = excludedFiles.filter((excluded) => {
+    const normalizedExcluded = excluded.replace(/\\/g, '/');
+    return !(
+      normalizedPath === normalizedExcluded ||
+      normalizedPath.endsWith('/' + normalizedExcluded) ||
+      normalizedPath.endsWith(normalizedExcluded)
+    );
+  });
+
+  if (filtered.length !== excludedFiles.length) {
+    await getConfig().update('files.excludedFiles', filtered, true);
+  }
 }

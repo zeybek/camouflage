@@ -1,7 +1,7 @@
 {
   "name": "camouflage",
   "displayName": "Camouflage",
-  "description": "Hide sensitive environment values in .env files",
+  "description": "Hide sensitive values in configuration files (.env, .sh, .json, .yaml, .properties, .toml)",
   "version": "1.1.2",
   "publisher": "zeybek",
   "author": {
@@ -19,12 +19,39 @@
     "node": ">=22.0.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Formatters",
+    "Visualization"
+  ],
+  "keywords": [
+    "env",
+    "environment",
+    "dotenv",
+    "secret",
+    "hide",
+    "mask",
+    "camouflage",
+    "sensitive",
+    "security",
+    "privacy",
+    "screen sharing",
+    "json",
+    "yaml",
+    "toml",
+    "properties",
+    "config",
+    "configuration"
   ],
   "activationEvents": [
     "onLanguage:dotenv",
     "onLanguage:properties",
     "onLanguage:plaintext",
+    "onLanguage:json",
+    "onLanguage:jsonc",
+    "onLanguage:yaml",
+    "onLanguage:shellscript",
+    "onLanguage:toml",
+    "onLanguage:ini",
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
@@ -74,6 +101,16 @@
         "command": "camouflage.setStyleScramble",
         "title": "Camouflage: Set Style to Scramble",
         "icon": "assets/icon.png"
+      },
+      {
+        "command": "camouflage.excludeFile",
+        "title": "Camouflage: Exclude This File",
+        "icon": "$(exclude)"
+      },
+      {
+        "command": "camouflage.includeFile",
+        "title": "Camouflage: Include This File",
+        "icon": "$(add)"
       }
     ],
     "configuration": {
@@ -88,7 +125,7 @@
         "camouflage.autoHide": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically hide values when opening .env files",
+          "description": "Automatically hide values when opening supported files",
           "category": "General"
         },
         "camouflage.files.patterns": {
@@ -98,9 +135,26 @@
           },
           "default": [
             ".env*",
-            "*.env"
+            "*.env",
+            "*.sh",
+            "*.json",
+            "*.yaml",
+            "*.yml",
+            "*.properties",
+            "*.ini",
+            "*.conf",
+            "*.toml"
           ],
-          "description": "File patterns to apply hiding (e.g., .env, .env.local, etc.)",
+          "description": "File patterns to apply hiding (e.g., .env, .env.local, config.json, etc.)",
+          "category": "Files"
+        },
+        "camouflage.files.excludedFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "List of file paths to exclude from Camouflage (absolute or relative paths)",
           "category": "Files"
         },
         "camouflage.appearance.hiddenText": {
@@ -184,9 +238,13 @@
             "*PWD*",
             "*DB*",
             "*DATABASE*",
-            "*PORT*"
+            "*PORT*",
+            "*CONNECTION*",
+            "*CREDENTIAL*",
+            "*AUTH*",
+            "*PRIVATE*"
           ],
-          "description": "Patterns to match keys that should always be hidden",
+          "description": "Patterns to match keys that should always be hidden (supports wildcards: *KEY*, KEY*, *KEY)",
           "category": "Selective Hiding"
         },
         "camouflage.selective.enabled": {
@@ -203,6 +261,44 @@
           "default": [],
           "description": "Keys that should never be hidden",
           "category": "Selective Hiding"
+        },
+        "camouflage.parsers.enabled": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "env",
+              "json",
+              "yaml",
+              "properties",
+              "toml"
+            ]
+          },
+          "default": [
+            "env",
+            "json",
+            "yaml",
+            "properties",
+            "toml"
+          ],
+          "description": "List of enabled parsers for different file formats",
+          "category": "Parsers"
+        },
+        "camouflage.parsers.json.nestedDepth": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Maximum depth for nested key parsing in JSON files",
+          "category": "Parsers"
+        },
+        "camouflage.parsers.yaml.nestedDepth": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Maximum depth for nested key parsing in YAML files",
+          "category": "Parsers"
         }
       }
     },
@@ -211,68 +307,79 @@
         "command": "camouflage.hide",
         "key": "ctrl+shift+h",
         "mac": "cmd+shift+h",
-        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+        "when": "editorTextFocus && resourceFilename =~ /.*(env|json|ya?ml|properties|ini|conf|toml|sh).*/"
       },
       {
         "command": "camouflage.reveal",
         "key": "ctrl+shift+r",
         "mac": "cmd+shift+r",
-        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+        "when": "editorTextFocus && resourceFilename =~ /.*(env|json|ya?ml|properties|ini|conf|toml|sh).*/"
       },
       {
         "command": "camouflage.toggleValue",
         "key": "ctrl+shift+t",
         "mac": "cmd+shift+t",
-        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+        "when": "editorTextFocus && resourceFilename =~ /.*(env|json|ya?ml|properties|ini|conf|toml|sh).*/"
       },
       {
         "command": "camouflage.toggleSelective",
         "key": "ctrl+shift+s",
         "mac": "cmd+shift+s",
-        "when": "editorTextFocus && resourceFilename =~ /.*env.*/"
+        "when": "editorTextFocus && resourceFilename =~ /.*(env|json|ya?ml|properties|ini|conf|toml|sh).*/"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/ && config.camouflage.enabled == false",
+          "when": "resourceFilename =~ /.*(env|json|ya?ml|properties|ini|conf|toml|sh).*/",
+          "submenu": "camouflage.mainMenu",
+          "group": "camouflage"
+        }
+      ],
+      "camouflage.mainMenu": [
+        {
+          "when": "config.camouflage.enabled == false",
           "command": "camouflage.hide",
-          "group": "camouflage@1"
+          "group": "1_toggle@1"
         },
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/ && config.camouflage.enabled == true",
+          "when": "config.camouflage.enabled == true",
           "command": "camouflage.reveal",
-          "group": "camouflage@1"
+          "group": "1_toggle@1"
         },
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
           "command": "camouflage.toggleValue",
-          "group": "camouflage@2"
+          "group": "2_selection@1"
         },
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
-          "command": "camouflage.toggleSelective",
-          "group": "camouflage@3"
-        },
-        {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
           "command": "camouflage.addToExcludeList",
-          "group": "camouflage@4"
+          "group": "2_selection@2"
         },
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/",
+          "command": "camouflage.toggleSelective",
+          "group": "3_mode@1"
+        },
+        {
+          "command": "camouflage.excludeFile",
+          "group": "4_file@1"
+        },
+        {
+          "command": "camouflage.includeFile",
+          "group": "4_file@2"
+        },
+        {
           "submenu": "camouflage.styleSubMenu",
-          "group": "camouflage@5"
+          "group": "5_style@1"
         }
       ],
       "editor/title": [
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/ && config.camouflage.enabled == false",
+          "when": "resourceFilename =~ /.*(env|json|ya?ml|properties|ini|conf|toml|sh).*/ && config.camouflage.enabled == false",
           "command": "camouflage.hide",
           "group": "navigation"
         },
         {
-          "when": "resourceExtname == .env || resourceFilename =~ /.*env.*/ && config.camouflage.enabled == true",
+          "when": "resourceFilename =~ /.*(env|json|ya?ml|properties|ini|conf|toml|sh).*/ && config.camouflage.enabled == true",
           "command": "camouflage.reveal",
           "group": "navigation"
         }
@@ -298,8 +405,13 @@
     },
     "submenus": [
       {
+        "id": "camouflage.mainMenu",
+        "label": "Camouflage",
+        "icon": "$(eye-closed)"
+      },
+      {
         "id": "camouflage.styleSubMenu",
-        "label": "Camouflage: Change Style"
+        "label": "Change Style"
       }
     ]
   },

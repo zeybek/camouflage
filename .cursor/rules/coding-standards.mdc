@@ -1,5 +1,6 @@
 ---
-alwaysApply: false
+description: TypeScript coding standards, naming conventions, code organization, and best practices
+globs: ["src/**/*.ts", "**/*.tsx"]
 ---
 
 # Coding Standards

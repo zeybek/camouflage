@@ -81,7 +81,16 @@ describe('config utils', () => {
 
   describe('getFilePatterns', () => {
     it('should return default patterns', () => {
-      const defaultPatterns = ['.env*', '*.env'];
+      const defaultPatterns = [
+        '.env*',
+        '*.env',
+        '*.sh',
+        '*.json',
+        '*.yaml',
+        '*.yml',
+        '*.properties',
+        '*.toml',
+      ];
       expect(config.getFilePatterns()).toEqual(defaultPatterns);
       expect(mockConfig.get).toHaveBeenCalledWith('files.patterns', defaultPatterns);
     });

@@ -1,0 +1,8 @@
+# Cursor Ignore File
+# Allow example files to be edited
+
+# Don't ignore examples directory
+!examples/
+!examples/**
+!examples/.env*
+

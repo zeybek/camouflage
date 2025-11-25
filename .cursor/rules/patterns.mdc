@@ -1,5 +1,6 @@
 ---
-alwaysApply: false
+description: Design patterns (Decorator, Strategy, Facade) and anti-patterns used in Camouflage codebase
+globs: ["src/**/*.ts"]
 ---
 
 # Design Patterns and Anti-Patterns

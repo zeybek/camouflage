@@ -1,13 +1,20 @@
 import * as vscode from 'vscode';
 import { Debounce, HandleErrors, Log, MeasurePerformance, ValidateConfig } from '../decorators';
 import { generateHiddenText } from '../lib/text-generator';
+import { configureParserRegistry } from '../parsers';
 import * as config from '../utils/config';
-import { findAllEnvVariables, isEnvFile } from '../utils/file';
+import {
+  findAllEnvVariables,
+  isSupportedFile,
+  ParsedVariable,
+  parseFileContent,
+} from '../utils/file';
 import { matchesAnyPattern } from '../utils/pattern-matcher';
 import { HiddenTextStyle } from './types';
 
 /**
- * Class to manage value masking in environment files
+ * Class to manage value masking in configuration files
+ * Supports multiple formats: .env, .sh, .json, .yaml, .properties, .toml
  */
 export class Camouflage {
   private decorationType: vscode.TextEditorDecorationType | undefined;
@@ -20,9 +27,26 @@ export class Camouflage {
     this.updateStatusBarItem();
     this.updateDecorationType();
 
-    if (this.activeEditor && isEnvFile(this.activeEditor.document.fileName)) {
+    // Configure parser registry from settings
+    this.configureParserRegistry();
+
+    if (this.activeEditor && isSupportedFile(this.activeEditor.document.fileName)) {
       this.updateDecorations();
     }
+  }
+
+  /**
+   * Configure the parser registry based on user settings
+   */
+  private configureParserRegistry(): void {
+    const enabledParsers = config.getEnabledParsers();
+    const jsonNestedDepth = config.getJsonNestedDepth();
+    const yamlNestedDepth = config.getYamlNestedDepth();
+
+    configureParserRegistry(enabledParsers, {
+      json: { maxNestedDepth: jsonNestedDepth },
+      yaml: { maxNestedDepth: yamlNestedDepth },
+    });
   }
 
   /**
@@ -53,8 +77,8 @@ export class Camouflage {
       this.statusBarItem.command = 'camouflage.hide';
     }
 
-    // Only show status bar item when viewing a .env file
-    if (this.activeEditor && isEnvFile(this.activeEditor.document.fileName)) {
+    // Show status bar item when viewing a supported file
+    if (this.activeEditor && isSupportedFile(this.activeEditor.document.fileName)) {
       this.statusBarItem.show();
     } else {
       this.statusBarItem.hide();
@@ -82,8 +106,8 @@ export class Camouflage {
         if (editor) {
           this.updateStatusBarItem();
 
-          // Only update decorations if this is an .env file
-          if (isEnvFile(editor.document.fileName)) {
+          // Only update decorations if this is a supported file
+          if (isSupportedFile(editor.document.fileName)) {
             // Immediately update decorations without debounce when switching editors
             this.updateDecorations();
           }
@@ -104,6 +128,8 @@ export class Camouflage {
     context.subscriptions.push(
       vscode.workspace.onDidChangeConfiguration((event) => {
         if (event.affectsConfiguration('camouflage')) {
+          // Reconfigure parser registry if parser settings changed
+          this.configureParserRegistry();
           this.updateDecorationType();
           this.updateStatusBarItem();
         }
@@ -154,6 +180,7 @@ export class Camouflage {
 
   /**
    * Update decorations in the editor
+   * Uses the new parser system for multi-format support
    */
   @MeasurePerformance()
   @HandleErrors()
@@ -162,9 +189,9 @@ export class Camouflage {
       return;
     }
 
-    // Check if this is an .env file
+    // Check if this is a supported file
     const fileName = this.activeEditor.document.fileName;
-    if (!isEnvFile(fileName)) {
+    if (!isSupportedFile(fileName)) {
       return;
     }
 
@@ -186,6 +213,128 @@ export class Camouflage {
     const text = this.activeEditor.document.getText();
     const decorations: vscode.DecorationOptions[] = [];
 
+    // Try to use the new parser system first
+    const parsedVariables = parseFileContent(fileName, text);
+
+    if (parsedVariables.length > 0) {
+      // Use new parser system
+      this.processParserResults(
+        parsedVariables,
+        decorations,
+        style,
+        textColor,
+        backgroundColor,
+        showPreview,
+        hoverMessage
+      );
+    } else {
+      // Fallback to legacy system for .env files
+      this.processLegacyEnvFile(
+        text,
+        decorations,
+        style,
+        textColor,
+        backgroundColor,
+        showPreview,
+        hoverMessage
+      );
+    }
+
+    this.activeEditor.setDecorations(this.decorationType, decorations);
+  }
+
+  /**
+   * Process results from the new parser system
+   */
+  private processParserResults(
+    variables: ParsedVariable[],
+    decorations: vscode.DecorationOptions[],
+    style: HiddenTextStyle,
+    textColor: string,
+    backgroundColor: string,
+    showPreview: boolean,
+    hoverMessage: string
+  ): void {
+    if (!this.activeEditor) {
+      return;
+    }
+
+    const excludeKeys = config.getExcludeKeys();
+    const isSelectiveEnabled = config.isSelectiveHidingEnabled();
+    const keyPatterns = config.getKeyPatterns();
+
+    for (const variable of variables) {
+      const { key, value, startIndex, endIndex, isCommented, isNested } = variable;
+
+      // Skip empty values
+      if (!value.trim()) {
+        continue;
+      }
+
+      // Check if this key should be excluded
+      if (excludeKeys.length > 0) {
+        const isExcluded = matchesAnyPattern(key, excludeKeys);
+        if (isExcluded) {
+          continue;
+        }
+      }
+
+      // Check if selective hiding is enabled
+      if (isSelectiveEnabled) {
+        // Only hide if key matches one of the patterns
+        const matchesPattern = matchesAnyPattern(key, keyPatterns);
+        if (!matchesPattern) {
+          continue;
+        }
+      }
+
+      // Calculate positions
+      const valueStartPos = this.activeEditor.document.positionAt(startIndex);
+      const valueEndPos = this.activeEditor.document.positionAt(endIndex);
+
+      // Generate hidden text based on value length and style
+      const valueLength = value.length;
+      const hiddenText =
+        style === HiddenTextStyle.SCRAMBLE
+          ? generateHiddenText(style, valueLength, value)
+          : generateHiddenText(style, valueLength);
+
+      // Create additional info for nested keys
+      const nestedInfo = isNested ? ' (nested)' : '';
+      const commentedInfo = isCommented ? ' (commented)' : '';
+
+      // Create a decoration for the value part
+      const decoration: vscode.DecorationOptions = {
+        range: new vscode.Range(valueStartPos, valueEndPos),
+        renderOptions: {
+          after: {
+            contentText: hiddenText,
+            color: textColor,
+            backgroundColor,
+            margin: '0 2px',
+          },
+        },
+        hoverMessage: showPreview
+          ? `${hoverMessage}${commentedInfo}${nestedInfo}\nKey: ${key}\nValue: ${value}`
+          : `${hoverMessage}${commentedInfo}${nestedInfo}\nKey: ${key}`,
+      };
+
+      decorations.push(decoration);
+    }
+  }
+
+  /**
+   * Process .env files using the legacy system (backward compatibility)
+   */
+  private processLegacyEnvFile(
+    text: string,
+    decorations: vscode.DecorationOptions[],
+    style: HiddenTextStyle,
+    textColor: string,
+    backgroundColor: string,
+    showPreview: boolean,
+    hoverMessage: string
+  ): void {
     // Find all environment variables (both regular and commented)
     const { regular: regularMatches, commented: commentedMatches } = findAllEnvVariables(text);
 
@@ -269,8 +418,6 @@ export class Camouflage {
 
     // Process commented environment variables
     processMatches(commentedMatches, true);
-
-    this.activeEditor.setDecorations(this.decorationType, decorations);
   }
 
   /**

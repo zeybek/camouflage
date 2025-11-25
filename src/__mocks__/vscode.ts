@@ -419,4 +419,16 @@ class MockPosition implements vscode.Position {
   }
 }
 
+// Export both default and named exports for compatibility
 export default mock;
+export const window = mock.window;
+export const workspace = mock.workspace;
+export const commands = mock.commands;
+export const languages = mock.languages;
+export const extensions = mock.extensions;
+export const StatusBarAlignment = mock.StatusBarAlignment;
+export const Range = mock.Range;
+export const Position = mock.Position;
+export const ExtensionContext = mock.ExtensionContext;
+export const Disposable = mock.Disposable;
+export const ThemeColor = mock.ThemeColor;

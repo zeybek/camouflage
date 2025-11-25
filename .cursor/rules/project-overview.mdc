@@ -1,16 +1,26 @@
 ---
-alwaysApply: false
+description: Project overview, architecture, supported formats, and key features of Camouflage VS Code extension
+alwaysApply: true
 ---
 
 # Camouflage - VS Code Extension Project Overview
 
 ## Project Purpose
 
-Camouflage is a Visual Studio Code extension that protects sensitive environment variables in `.env` files during screen sharing, streaming, and recording sessions. It provides real-time visual masking of values while maintaining full editability.
+Camouflage is a Visual Studio Code extension that protects sensitive values in configuration files during screen sharing, streaming, and recording sessions. It provides real-time visual masking of values while maintaining full editability.
 
 ## Core Problem Solved
 
-Developers frequently need to share their screen (Zoom, streaming, recordings) but `.env` files contain sensitive data (API keys, passwords, tokens). Camouflage automatically masks these values visually without modifying the actual file content.
+Developers frequently need to share their screen (Zoom, streaming, recordings) but configuration files contain sensitive data (API keys, passwords, tokens). Camouflage automatically masks these values visually without modifying the actual file content.
+
+## Supported File Formats
+
+- **Environment Files**: `.env`, `.env.*`, `*.env`, `.envrc`
+- **Shell Scripts**: `.sh`
+- **JSON**: `.json` (with nested key support)
+- **YAML**: `.yaml`, `.yml` (with nested key support)
+- **Properties**: `.properties`, `.ini`, `.conf`
+- **TOML**: `.toml`
 
 ## Architecture Type
 
@@ -18,6 +28,7 @@ Developers frequently need to share their screen (Zoom, streaming, recordings) b
 
 - **Presentation Layer**: VS Code UI integration (decorations, status bar, commands)
 - **Business Logic Layer**: Core masking engine, pattern matching, configuration
+- **Parser Layer**: Multi-format parsers (env, json, yaml, properties, toml)
 - **Utility Layer**: Helper functions, text generation, validation
 - **Infrastructure Layer**: VS Code API integration, file system, event handling
 
@@ -36,9 +47,12 @@ Developers frequently need to share their screen (Zoom, streaming, recordings) b
 3. **Pattern Flexibility**: Wildcard and regex pattern matching
 4. **Security First**: No telemetry, all processing local
 5. **User Experience**: Intuitive, non-intrusive, keyboard-friendly
+6. **Multi-Format Support**: Works with various configuration file formats
 
 ## Key Features
 
+- Multi-format support (ENV, JSON, YAML, Properties, TOML, Shell)
+- Nested key support for JSON and YAML files
 - Multiple hiding styles (Text, Dotted, Stars, Scramble)
 - Selective hiding with pattern matching
 - Case-insensitive pattern support

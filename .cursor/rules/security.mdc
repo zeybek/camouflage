@@ -1,5 +1,6 @@
 ---
-alwaysApply: false
+description: Security and privacy guidelines - file protection, input validation, error handling, and sensitive data rules
+globs: ["src/**/*.ts", "SECURITY.md"]
 ---
 
 # Security and Privacy Guidelines

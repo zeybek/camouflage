@@ -1,5 +1,6 @@
 ---
-alwaysApply: false
+description: Git workflow, commit message format, branching strategy, and semantic release process
+globs: [".github/**/*", "CHANGELOG.md", "package.json"]
 ---
 
 # Git Workflow and Release Process

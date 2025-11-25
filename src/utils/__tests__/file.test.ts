@@ -147,11 +147,20 @@ export ANOTHER_KEY=value
       expect(isEnvFile('.envrc')).toBe(true);
     });
 
-    it('should reject non-env files', () => {
-      expect(isEnvFile('config.json')).toBe(false);
-      expect(isEnvFile('package.json')).toBe(false);
+    it('should identify supported config files (multi-format support)', () => {
+      // JSON files are now supported
+      expect(isEnvFile('config.json')).toBe(true);
+      expect(isEnvFile('settings.yaml')).toBe(true);
+      expect(isEnvFile('app.properties')).toBe(true);
+      expect(isEnvFile('config.toml')).toBe(true);
+      expect(isEnvFile('script.sh')).toBe(true);
+    });
+
+    it('should reject unsupported files', () => {
       expect(isEnvFile('environment.txt')).toBe(false);
       expect(isEnvFile('README.md')).toBe(false);
+      expect(isEnvFile('style.css')).toBe(false);
+      expect(isEnvFile('app.js')).toBe(false);
     });
   });
 });

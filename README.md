@@ -1,4 +1,4 @@
-# Camouflage - Environment Value Hider
+# Camouflage - Configuration Value Hider
 
 ![Camouflage Banner](./images/screenshot.png)
 
@@ -8,11 +8,13 @@
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/zeybek.camouflage)](https://marketplace.visualstudio.com/items?itemName=zeybek.camouflage)
 [![codecov](https://codecov.io/gh/zeybek/camouflage/graph/badge.svg?token=T0bRV39DBM)](https://codecov.io/gh/zeybek/camouflage)
 
-Camouflage is a VS Code extension that helps protect sensitive environment variables by hiding their values in `.env` files. Perfect for screen sharing, recordings, or taking screenshots without exposing sensitive information.
+Camouflage is a VS Code extension that helps protect sensitive values in configuration files by hiding them visually. Supports multiple file formats including `.env`, `.json`, `.yaml`, `.properties`, `.toml`, and `.sh` files. Perfect for screen sharing, recordings, or taking screenshots without exposing sensitive information.
 
 ## Features
 
-- 🔒 **Automatic Value Hiding**: Automatically hides values in `.env` files while preserving the keys
+- 🔒 **Automatic Value Hiding**: Automatically hides values in configuration files while preserving the keys
+- 📁 **Multi-Format Support**: Works with `.env`, `.json`, `.yaml`, `.yml`, `.properties`, `.ini`, `.conf`, `.toml`, and `.sh` files
+- 🔗 **Nested Key Support**: Supports nested keys in JSON and YAML files (e.g., `database.password`)
 - 🎨 **Multiple Hiding Styles**: Choose from different styles to hide your values:
   - Text (default): `************************`
   - Dotted: `••••••••••••`
@@ -22,11 +24,23 @@ Camouflage is a VS Code extension that helps protect sensitive environment varia
 - 🎯 **Quick Toggle**: Easily toggle visibility via status bar or context menu
 - 🌈 **Customizable Appearance**: Configure colors and patterns to match your theme
 - 👁️ **Value Preview**: Optional value preview on hover
-- 📁 **Flexible File Support**: Works with various `.env` file formats
 - 🔍 **Selective Hiding**: Hide only specific keys based on patterns or exclude certain keys
+- 📂 **File Exclusion**: Exclude specific files from Camouflage protection
 - ⌨️ **Keyboard Shortcuts**: Quickly toggle visibility with customizable keyboard shortcuts
-- 🖱️ **Enhanced Context Menu**: Right-click on any value to toggle its visibility
+- 🖱️ **Organized Context Menu**: All options grouped under a single "Camouflage" menu
 - 📊 **Status Bar Indicators**: See the current state and mode at a glance
+- 🔧 **Indented Code Support**: Works with indented export statements in shell scripts
+
+## Supported File Formats
+
+| Format        | Extensions                          | Nested Keys    |
+| ------------- | ----------------------------------- | -------------- |
+| Environment   | `.env`, `.env.*`, `*.env`, `.envrc` | No             |
+| Shell Scripts | `.sh`                               | No             |
+| JSON          | `.json`                             | Yes            |
+| YAML          | `.yaml`, `.yml`                     | Yes            |
+| Properties    | `.properties`, `.ini`, `.conf`      | No             |
+| TOML          | `.toml`                             | Yes (sections) |
 
 ## Installation
 
@@ -43,7 +57,7 @@ Camouflage is a VS Code extension that helps protect sensitive environment varia
 
 ### Basic Usage
 
-1. Open any `.env` file
+1. Open any supported configuration file (`.env`, `.json`, `.yaml`, etc.)
 2. Values are automatically hidden (if auto-hide is enabled)
 3. Use the status bar toggle to show/hide values
 4. Right-click in the editor for context menu options
@@ -60,17 +74,33 @@ Click the status bar item to toggle between On/Off states.
 
 ### Context Menu Options
 
-Right-click on any line in your `.env` file to access these options:
+Right-click on any line in your configuration file to access the **Camouflage** submenu with these organized options:
 
-- **Hide/Reveal Environment Variables**: Toggle global hiding
-- **Toggle Selected Value**: Toggle visibility for the current value only
-- **Toggle Selective Hiding**: Switch between hiding all values or only selected ones
-- **Add to Exclude List**: Add the current key to the exclude list
-- **Change Style**: Sub-menu to quickly change between different hiding styles:
-  - Text: Standard text replacement (e.g., `************************`)
-  - Dotted: Uses dot characters (e.g., `••••••••••••`)
-  - Stars: Uses asterisk characters (e.g., `************`)
-  - Scramble: Randomly shuffles characters (e.g., `sroedpasw`)
+```
+🎭 Camouflage
+├── Hide Values / Reveal Values     ← Toggle global hiding
+├─────────────────────────────────
+├── Toggle This Value               ← Toggle current value visibility
+├── Exclude This Key                ← Add key to exclude list
+├─────────────────────────────────
+├── Toggle Selective Mode           ← Switch hiding mode
+├─────────────────────────────────
+├── Exclude This File               ← Stop hiding in current file
+├── Include This File               ← Resume hiding in current file
+├─────────────────────────────────
+└── Change Style →                  ← Submenu for hiding styles
+    ├── Text
+    ├── Dotted
+    ├── Stars
+    └── Scramble
+```
+
+**Hiding Styles:**
+
+- **Text**: Standard text replacement (e.g., `************************`)
+- **Dotted**: Uses dot characters (e.g., `••••••••••••`)
+- **Stars**: Uses asterisk characters (e.g., `************`)
+- **Scramble**: Randomly shuffles characters (e.g., `sroedpasw`)
 
 ### Keyboard Shortcuts
 
@@ -95,7 +125,13 @@ Access settings through:
 
 #### Files
 
-- `camouflage.files.patterns`: File patterns to apply hiding (e.g., .env, .env.local)
+- `camouflage.files.patterns`: File patterns to apply hiding (e.g., `.env*`, `*.json`, `*.yaml`)
+- `camouflage.files.excludedFiles`: List of file paths to exclude from Camouflage (absolute or relative paths)
+- `camouflage.files.enabledParsers`: List of parsers to enable (`env`, `json`, `yaml`, `properties`, `toml`)
+
+#### Parser Options
+
+- `camouflage.parserOptions.maxNestedDepth`: Maximum depth to parse for nested keys in JSON/YAML (default: 5)
 
 #### Appearance
 
@@ -122,7 +158,72 @@ Access settings through:
 
 ## Examples
 
-### Different Styles
+### Multi-Format Support
+
+Camouflage works seamlessly across different configuration file formats:
+
+#### Environment Files (.env)
+
+```env
+# All values are hidden
+API_KEY=************************
+DATABASE_URL=************************
+SECRET_TOKEN=************************
+```
+
+#### JSON Files (.json)
+
+```json
+{
+  "apiKey": "************************",
+  "database": {
+    "host": "************************",
+    "password": "************************"
+  }
+}
+```
+
+Nested keys are displayed as `database.host`, `database.password` in hover messages.
+
+#### YAML Files (.yaml)
+
+```yaml
+api:
+  key: '************************'
+database:
+  host: '************************'
+  password: '************************'
+```
+
+#### Shell Scripts (.sh)
+
+```bash
+#!/bin/bash
+export API_KEY=************************
+export DATABASE_URL=************************
+DB_PASSWORD=************************
+```
+
+#### Properties Files (.properties)
+
+```properties
+api.key=************************
+database.host=************************
+database.password=************************
+```
+
+#### TOML Files (.toml)
+
+```toml
+[database]
+host = "************************"
+password = "************************"
+
+[api]
+key = "************************"
+```
+
+### Different Hiding Styles
 
 ```env
 # Text Style (Default)
@@ -152,6 +253,7 @@ You can configure Camouflage to only hide specific keys by enabling selective hi
   "API*",    // Starts with "API" (e.g., API_KEY, API_SECRET)
   "*SECRET", // Ends with "SECRET" (e.g., JWT_SECRET, CLIENT_SECRET)
   "PASSWORD", // Exact match only (only "PASSWORD", not "DB_PASSWORD")
+  "*password*", // Contains "password" (works with nested keys like database.password)
   "DB*",     // Starts with "DB" (e.g., DB_HOST, DB_USER)
   "*DB*",    // Contains "DB" anywhere (e.g., MONGODB_URI, RDS_DB_NAME)
   "DATABASE*", // Starts with "DATABASE" (e.g., DATABASE_URL)
@@ -175,6 +277,8 @@ The same pattern matching rules apply to both `keyPatterns` and `excludeKeys`:
 - `KEY*` - Matches keys starting with "KEY"
 - `*KEY` - Matches keys ending with "KEY"
 - `KEY` - Matches only the exact key "KEY"
+
+**Note**: For nested keys (JSON/YAML), the full key path is used for matching. For example, `database.password` can be matched with `*password*` or `database.*`.
 
 With these settings:
 
@@ -230,6 +334,46 @@ You can also add keys to the exclude list without removing existing patterns:
 
 This gives you more control over which values are hidden or visible based on your specific needs.
 
+### File Exclusion
+
+You can exclude specific files from Camouflage protection:
+
+#### Using Context Menu
+
+1. Open the file you want to exclude
+2. Right-click → **Camouflage** → **Exclude This File**
+3. The file will no longer be processed by Camouflage
+
+To include a file again:
+
+1. Open the excluded file
+2. Right-click → **Camouflage** → **Include This File**
+
+#### Using Settings
+
+```json
+// Exclude specific files from Camouflage
+"camouflage.files.excludedFiles": [
+  "/path/to/public-config.json",
+  "examples/sample.env",
+  "test-fixtures/config.yaml"
+]
+```
+
+This is useful when you have configuration files that don't contain sensitive data and should always be visible.
+
+### Configuring Parsers
+
+You can enable or disable specific parsers based on your needs:
+
+```json
+// Enable only specific parsers
+"camouflage.files.enabledParsers": ["env", "json", "yaml"]
+
+// Configure nested key depth for JSON/YAML
+"camouflage.parserOptions.maxNestedDepth": 10
+```
+
 ## Security
 
 ### Visual Protection Only
@@ -270,4 +414,4 @@ See the [CHANGELOG.md](CHANGELOG.md) file for details on each release.
 
 ---
 
-**Enjoy hiding your sensitive environment values with Camouflage!**
+**Enjoy hiding your sensitive configuration values with Camouflage!**

@@ -1,5 +1,6 @@
 ---
-alwaysApply: false
+description: Critical guidelines for AI assistants working with Camouflage codebase - security rules, code style, and best practices
+alwaysApply: true
 ---
 
 # AI Assistant Guidelines

@@ -5,3 +5,7 @@ node_modules
 *.vsix
 .DS_Store
 coverage/
+
+# Allow all files in examples directory (for testing)
+!examples/
+!examples/**
