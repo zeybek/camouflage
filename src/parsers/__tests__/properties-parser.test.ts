@@ -120,5 +120,58 @@ third=value3`;
       expect(result[1].lineNumber).toBe(1);
       expect(result[2].lineNumber).toBe(2);
     });
+
+    it('should handle empty content', () => {
+      const result = parser.parse('');
+      expect(result).toHaveLength(0);
+    });
+
+    it('should handle only empty lines', () => {
+      const content = '\n\n\n';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('should handle section with colon separator', () => {
+      const content = `[database]
+host: localhost
+port: 5432`;
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].key).toBe('database.host');
+      expect(result[1].key).toBe('database.port');
+    });
+
+    it('should handle lines with no separator', () => {
+      const content = 'api.key=secret\ninvalid line without separator\ndb.host=localhost';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(2);
+    });
+
+    it('should handle values with colons', () => {
+      const content = 'url=http://localhost:8080';
+      const result = parser.parse(content);
+
+      expect(result[0].value).toBe('http://localhost:8080');
+    });
+
+    it('should handle whitespace-only values', () => {
+      const content = 'key=   \nother=value';
+      const result = parser.parse(content);
+
+      // Whitespace-only values should be skipped
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('other');
+    });
+
+    it('should handle commented ; lines', () => {
+      const content = '; comment\nkey=value';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(1);
+    });
   });
 });

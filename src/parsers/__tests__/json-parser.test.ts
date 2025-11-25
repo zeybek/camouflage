@@ -112,5 +112,63 @@ describe('JsonParser', () => {
       expect(result).toHaveLength(1);
       expect(result[0].key).toBe('key');
     });
+
+    it('should handle arrays in JSON', () => {
+      const content = '{"items": ["a", "b"], "name": "test"}';
+      const result = parser.parse(content);
+
+      // Should only find string properties, not array items
+      expect(result.some((v) => v.key === 'name')).toBe(true);
+    });
+
+    it('should handle null values', () => {
+      const content = '{"nullable": null, "name": "test"}';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('name');
+    });
+
+    it('should handle empty object', () => {
+      const content = '{}';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('should handle empty string values', () => {
+      const content = '{"empty": "", "name": "test"}';
+      const result = parser.parse(content);
+
+      // Empty strings should be included
+      expect(result.some((v) => v.key === 'empty')).toBe(true);
+    });
+
+    it('should handle duplicate keys in regex fallback', () => {
+      const content = '{"key": "value1"}\n{"key": "value2"}'; // Invalid JSON
+      const result = parser.parse(content);
+
+      // Regex fallback should find both
+      expect(result.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should handle special characters in keys', () => {
+      const content = '{"key-with-dash": "value", "key.with.dot": "value2"}';
+      const result = parser.parse(content);
+
+      expect(result.some((v) => v.key === 'key-with-dash')).toBe(true);
+      expect(result.some((v) => v.key === 'key.with.dot')).toBe(true);
+    });
+
+    it('should calculate line numbers correctly', () => {
+      const content = `{
+  "line1": "value1",
+  "line2": "value2"
+}`;
+      const result = parser.parse(content);
+
+      expect(result[0].lineNumber).toBe(1);
+      expect(result[1].lineNumber).toBe(2);
+    });
   });
 });

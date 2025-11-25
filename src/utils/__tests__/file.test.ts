@@ -3,7 +3,10 @@ import {
   findAllEnvVariables,
   findCommentedEnvVariables,
   findEnvVariables,
+  getSupportedExtensions,
   isEnvFile,
+  isSupportedFile,
+  parseFileContent,
 } from '../file';
 
 describe('file utils', () => {
@@ -161,6 +164,148 @@ export ANOTHER_KEY=value
       expect(isEnvFile('README.md')).toBe(false);
       expect(isEnvFile('style.css')).toBe(false);
       expect(isEnvFile('app.js')).toBe(false);
+    });
+  });
+
+  describe('isSupportedFile', () => {
+    it('should return true for env files', () => {
+      expect(isSupportedFile('.env')).toBe(true);
+      expect(isSupportedFile('.env.local')).toBe(true);
+      expect(isSupportedFile('.envrc')).toBe(true);
+    });
+
+    it('should return true for json files', () => {
+      expect(isSupportedFile('config.json')).toBe(true);
+      expect(isSupportedFile('/path/to/settings.json')).toBe(true);
+    });
+
+    it('should return true for yaml files', () => {
+      expect(isSupportedFile('config.yaml')).toBe(true);
+      expect(isSupportedFile('config.yml')).toBe(true);
+    });
+
+    it('should return true for properties files', () => {
+      expect(isSupportedFile('app.properties')).toBe(true);
+      expect(isSupportedFile('settings.ini')).toBe(true);
+      expect(isSupportedFile('app.conf')).toBe(true);
+    });
+
+    it('should return true for toml files', () => {
+      expect(isSupportedFile('config.toml')).toBe(true);
+    });
+
+    it('should return true for shell scripts', () => {
+      expect(isSupportedFile('script.sh')).toBe(true);
+      expect(isSupportedFile('/path/to/deploy.sh')).toBe(true);
+    });
+
+    it('should return false for unsupported files', () => {
+      expect(isSupportedFile('README.md')).toBe(false);
+      expect(isSupportedFile('app.ts')).toBe(false);
+      expect(isSupportedFile('style.css')).toBe(false);
+      expect(isSupportedFile('index.html')).toBe(false);
+    });
+  });
+
+  describe('parseFileContent', () => {
+    it('should parse env file content', () => {
+      const content = 'API_KEY=secret123\nDB_HOST=localhost';
+      const result = parseFileContent('.env', content);
+
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0].key).toBe('API_KEY');
+      expect(result[0].value).toBe('secret123');
+    });
+
+    it('should parse json file content', () => {
+      const content = '{"apiKey": "secret123", "dbHost": "localhost"}';
+      const result = parseFileContent('config.json', content);
+
+      expect(result.length).toBeGreaterThan(0);
+      expect(result.some((v) => v.key === 'apiKey')).toBe(true);
+    });
+
+    it('should parse yaml file content', () => {
+      const content = 'apiKey: secret123\ndbHost: localhost';
+      const result = parseFileContent('config.yaml', content);
+
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('should parse properties file content', () => {
+      const content = 'api.key=secret123\ndb.host=localhost';
+      const result = parseFileContent('app.properties', content);
+
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('should parse toml file content', () => {
+      const content = '[database]\nhost = "localhost"\npassword = "secret"';
+      const result = parseFileContent('config.toml', content);
+
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('should parse shell script content', () => {
+      const content = 'export API_KEY=secret123\nexport DB_HOST=localhost';
+      const result = parseFileContent('script.sh', content);
+
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0].key).toBe('API_KEY');
+    });
+
+    it('should return empty array for unsupported files', () => {
+      const content = 'some random content';
+      const result = parseFileContent('README.md', content);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getSupportedExtensions', () => {
+    it('should return all supported extensions', () => {
+      const extensions = getSupportedExtensions();
+
+      expect(extensions).toContain('.env');
+      expect(extensions).toContain('.json');
+      expect(extensions).toContain('.yaml');
+      expect(extensions).toContain('.yml');
+      expect(extensions).toContain('.properties');
+      expect(extensions).toContain('.toml');
+      expect(extensions).toContain('.sh');
+    });
+
+    it('should return an array', () => {
+      const extensions = getSupportedExtensions();
+      expect(Array.isArray(extensions)).toBe(true);
+    });
+  });
+
+  describe('isEnvFile (legacy)', () => {
+    it('should return true for legacy .env patterns', () => {
+      expect(isEnvFile('.env')).toBe(true);
+      expect(isEnvFile('.env.local')).toBe(true);
+      expect(isEnvFile('path/to/.envrc')).toBe(true);
+    });
+
+    it('should handle case insensitivity', () => {
+      expect(isEnvFile('.ENV')).toBe(true);
+      expect(isEnvFile('.ENV.LOCAL')).toBe(true);
+    });
+  });
+
+  describe('isSupportedFile with exclusions', () => {
+    // Note: This test requires mocking config.isFileExcluded
+    // In the actual implementation, excluded files return false
+    it('should return true for supported files', () => {
+      expect(isSupportedFile('config.json')).toBe(true);
+      expect(isSupportedFile('.env')).toBe(true);
+    });
+
+    it('should handle user-defined patterns', () => {
+      // Default patterns include *.json, *.yaml, etc.
+      expect(isSupportedFile('myconfig.json')).toBe(true);
+      expect(isSupportedFile('settings.yaml')).toBe(true);
     });
   });
 });

@@ -129,5 +129,73 @@ third = "value3"`;
       expect(result[1].lineNumber).toBe(1);
       expect(result[2].lineNumber).toBe(2);
     });
+
+    it('should handle multi-line basic strings on single line', () => {
+      // Note: TomlParser currently supports triple-quote syntax for strings containing quotes
+      // but does not support strings that actually span multiple lines
+      const content = 'description = """string with "quotes" inside"""';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('description');
+      expect(result[0].value).toBe('string with "quotes" inside');
+    });
+
+    it('should handle multi-line literal strings on single line', () => {
+      // Note: TomlParser currently supports triple-quote syntax for strings containing quotes
+      // but does not support strings that actually span multiple lines
+      const content = "description = '''string with 'quotes' inside'''";
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('description');
+      expect(result[0].value).toBe("string with 'quotes' inside");
+    });
+
+    it('should handle quoted keys', () => {
+      const content = '"key with spaces" = "value"';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('key with spaces');
+      expect(result[0].value).toBe('value');
+    });
+
+    it('should handle single-quoted keys', () => {
+      const content = "'another key' = 'value'";
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('another key');
+    });
+
+    it('should handle unquoted values with inline comments', () => {
+      const content = 'port = 3000 # default port\nhost = localhost # server';
+      const result = parser.parse(content);
+
+      expect(result[0].value).toBe('3000');
+      expect(result[1].value).toBe('localhost');
+    });
+
+    it('should skip empty lines', () => {
+      const content = `key1 = "value1"
+
+key2 = "value2"`;
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(2);
+    });
+
+    it('should handle empty content', () => {
+      const result = parser.parse('');
+      expect(result).toHaveLength(0);
+    });
+
+    it('should handle only comments', () => {
+      const content = '# This is a comment\n# Another comment';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(0);
+    });
   });
 });

@@ -294,4 +294,275 @@ describe('config utils', () => {
       expect(config.getExcludeKeys()).toEqual(customExcludeKeys);
     });
   });
+
+  describe('getAppearanceStyle', () => {
+    it('should return text by default', () => {
+      expect(config.getAppearanceStyle()).toBe('text');
+      expect(mockConfig.get).toHaveBeenCalledWith('appearance.style', 'text');
+    });
+
+    it('should return configured style', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'appearance.style') {
+          return 'stars';
+        }
+        return defaultValue;
+      });
+
+      expect(config.getAppearanceStyle()).toBe('stars');
+    });
+  });
+
+  describe('getEnabledParsers', () => {
+    it('should return default parsers', () => {
+      const defaultParsers = ['env', 'json', 'yaml', 'properties', 'toml'];
+      expect(config.getEnabledParsers()).toEqual(defaultParsers);
+      expect(mockConfig.get).toHaveBeenCalledWith('parsers.enabled', defaultParsers);
+    });
+
+    it('should return configured parsers', () => {
+      const customParsers = ['env', 'json'];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'parsers.enabled') {
+          return customParsers;
+        }
+        return defaultValue;
+      });
+
+      expect(config.getEnabledParsers()).toEqual(customParsers);
+    });
+  });
+
+  describe('getJsonNestedDepth', () => {
+    it('should return 10 by default', () => {
+      expect(config.getJsonNestedDepth()).toBe(10);
+      expect(mockConfig.get).toHaveBeenCalledWith('parsers.json.nestedDepth', 10);
+    });
+
+    it('should return configured depth', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'parsers.json.nestedDepth') {
+          return 5;
+        }
+        return defaultValue;
+      });
+
+      expect(config.getJsonNestedDepth()).toBe(5);
+    });
+  });
+
+  describe('getYamlNestedDepth', () => {
+    it('should return 10 by default', () => {
+      expect(config.getYamlNestedDepth()).toBe(10);
+      expect(mockConfig.get).toHaveBeenCalledWith('parsers.yaml.nestedDepth', 10);
+    });
+
+    it('should return configured depth', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'parsers.yaml.nestedDepth') {
+          return 3;
+        }
+        return defaultValue;
+      });
+
+      expect(config.getYamlNestedDepth()).toBe(3);
+    });
+  });
+
+  describe('isParserEnabled', () => {
+    it('should return true for enabled parser', () => {
+      expect(config.isParserEnabled('env')).toBe(true);
+    });
+
+    it('should return false for disabled parser', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'parsers.enabled') {
+          return ['json', 'yaml'];
+        }
+        return defaultValue;
+      });
+
+      expect(config.isParserEnabled('env')).toBe(false);
+      expect(config.isParserEnabled('json')).toBe(true);
+    });
+  });
+
+  describe('getExcludedFiles', () => {
+    it('should return empty array by default', () => {
+      expect(config.getExcludedFiles()).toEqual([]);
+      expect(mockConfig.get).toHaveBeenCalledWith('files.excludedFiles', []);
+    });
+
+    it('should return configured excluded files', () => {
+      const excludedFiles = ['/path/to/file.json', 'config.yaml'];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return excludedFiles;
+        }
+        return defaultValue;
+      });
+
+      expect(config.getExcludedFiles()).toEqual(excludedFiles);
+    });
+  });
+
+  describe('isFileExcluded', () => {
+    it('should return false when no files are excluded', () => {
+      expect(config.isFileExcluded('/path/to/file.json')).toBe(false);
+    });
+
+    it('should return true for exact match', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return ['/path/to/file.json'];
+        }
+        return defaultValue;
+      });
+
+      expect(config.isFileExcluded('/path/to/file.json')).toBe(true);
+    });
+
+    it('should return true when path ends with excluded pattern', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return ['config.json'];
+        }
+        return defaultValue;
+      });
+
+      expect(config.isFileExcluded('/some/path/config.json')).toBe(true);
+    });
+
+    it('should normalize Windows paths', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return ['path/to/file.json'];
+        }
+        return defaultValue;
+      });
+
+      expect(config.isFileExcluded('path\\to\\file.json')).toBe(true);
+    });
+
+    it('should return false for non-matching file', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return ['other.json'];
+        }
+        return defaultValue;
+      });
+
+      expect(config.isFileExcluded('/path/to/file.json')).toBe(false);
+    });
+  });
+
+  describe('addExcludedFile', () => {
+    it('should add file to excluded list', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return [];
+        }
+        return defaultValue;
+      });
+
+      await config.addExcludedFile('/path/to/file.json');
+
+      expect(mockConfig.update).toHaveBeenCalledWith(
+        'files.excludedFiles',
+        ['/path/to/file.json'],
+        true
+      );
+    });
+
+    it('should not add duplicate file', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return ['/path/to/file.json'];
+        }
+        return defaultValue;
+      });
+
+      await config.addExcludedFile('/path/to/file.json');
+
+      expect(mockConfig.update).not.toHaveBeenCalled();
+    });
+
+    it('should normalize Windows paths when adding', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return [];
+        }
+        return defaultValue;
+      });
+
+      await config.addExcludedFile('path\\to\\file.json');
+
+      expect(mockConfig.update).toHaveBeenCalledWith(
+        'files.excludedFiles',
+        ['path/to/file.json'],
+        true
+      );
+    });
+  });
+
+  describe('removeExcludedFile', () => {
+    it('should remove file from excluded list', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return ['/path/to/file.json', '/other/file.yaml'];
+        }
+        return defaultValue;
+      });
+
+      await config.removeExcludedFile('/path/to/file.json');
+
+      expect(mockConfig.update).toHaveBeenCalledWith(
+        'files.excludedFiles',
+        ['/other/file.yaml'],
+        true
+      );
+    });
+
+    it('should not update if file is not in list', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return ['/other/file.yaml'];
+        }
+        return defaultValue;
+      });
+
+      await config.removeExcludedFile('/path/to/file.json');
+
+      expect(mockConfig.update).not.toHaveBeenCalled();
+    });
+
+    it('should remove file matching by path ending', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return ['config.json'];
+        }
+        return defaultValue;
+      });
+
+      await config.removeExcludedFile('/full/path/to/config.json');
+
+      expect(mockConfig.update).toHaveBeenCalledWith('files.excludedFiles', [], true);
+    });
+  });
 });

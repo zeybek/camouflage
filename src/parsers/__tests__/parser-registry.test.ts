@@ -5,6 +5,7 @@ import {
   isSupportedFile,
   parseFile,
   configureParserRegistry,
+  matchesUserPatterns,
 } from '../index';
 
 describe('ParserRegistry', () => {
@@ -121,6 +122,55 @@ describe('ParserRegistry', () => {
       expect(extensions).toContain('.properties');
       expect(extensions).toContain('.toml');
     });
+
+    it('should return only enabled parser extensions', () => {
+      registry.setEnabledParsers(['env']);
+      const extensions = registry.getSupportedExtensions();
+
+      expect(extensions).toContain('.env');
+      expect(extensions).not.toContain('.json');
+    });
+  });
+
+  describe('updateParserOptions', () => {
+    it('should update parser options', () => {
+      registry.updateParserOptions('json', { maxNestedDepth: 5 });
+      // Parser should still work after options update
+      const result = registry.parseFile('test.json', '{"key": "value"}');
+      expect(result).toHaveLength(1);
+    });
+
+    it('should handle non-existent parser type', () => {
+      // Should not throw
+      expect(() => {
+        registry.updateParserOptions('invalid' as any, { maxNestedDepth: 5 });
+      }).not.toThrow();
+    });
+  });
+
+  describe('getParser', () => {
+    it('should return parser by type', () => {
+      const envParser = registry.getParser('env');
+      expect(envParser).toBeDefined();
+      expect(envParser?.name).toBe('env');
+    });
+
+    it('should return undefined for invalid type', () => {
+      const parser = registry.getParser('invalid' as any);
+      expect(parser).toBeUndefined();
+    });
+  });
+
+  describe('setEnabledParsers', () => {
+    it('should ignore invalid parser types', () => {
+      registry.setEnabledParsers(['env', 'invalid' as any, 'json']);
+      const parsers = registry.getEnabledParsers();
+
+      // Should only have valid parsers
+      expect(parsers).toHaveLength(2);
+      expect(parsers.some((p) => p.name === 'env')).toBe(true);
+      expect(parsers.some((p) => p.name === 'json')).toBe(true);
+    });
   });
 });
 
@@ -176,6 +226,62 @@ describe('Module exports', () => {
       const registry = getParserRegistry();
       const parser = registry.getParser('json');
       expect(parser).toBeDefined();
+    });
+
+    it('should configure yaml parser options', () => {
+      configureParserRegistry(['yaml'], {
+        yaml: { maxNestedDepth: 3 },
+      });
+      const registry = getParserRegistry();
+      const parser = registry.getParser('yaml');
+      expect(parser).toBeDefined();
+    });
+  });
+
+  describe('matchesUserPatterns', () => {
+    it('should match *pattern* (contains)', () => {
+      expect(matchesUserPatterns('myconfig.env', ['*env*'])).toBe(true);
+      expect(matchesUserPatterns('environment', ['*env*'])).toBe(true);
+      expect(matchesUserPatterns('config.json', ['*env*'])).toBe(false);
+    });
+
+    it('should match *.ext (ends with)', () => {
+      expect(matchesUserPatterns('config.json', ['*.json'])).toBe(true);
+      expect(matchesUserPatterns('script.sh', ['*.sh'])).toBe(true);
+      expect(matchesUserPatterns('config.yaml', ['*.json'])).toBe(false);
+    });
+
+    it('should match .pattern* (starts with dot)', () => {
+      expect(matchesUserPatterns('.env', ['.env*'])).toBe(true);
+      expect(matchesUserPatterns('.env.local', ['.env*'])).toBe(true);
+      expect(matchesUserPatterns('.env.production', ['.env*'])).toBe(true);
+      expect(matchesUserPatterns('env.local', ['.env*'])).toBe(false);
+    });
+
+    it('should match pattern* (starts with)', () => {
+      expect(matchesUserPatterns('config.json', ['config*'])).toBe(true);
+      expect(matchesUserPatterns('configuration.yaml', ['config*'])).toBe(true);
+      expect(matchesUserPatterns('myconfig.json', ['config*'])).toBe(false);
+    });
+
+    it('should match exact pattern', () => {
+      expect(matchesUserPatterns('.env', ['.env'])).toBe(true);
+      expect(matchesUserPatterns('config.json', ['config.json'])).toBe(true);
+      expect(matchesUserPatterns('.env.local', ['.env'])).toBe(false);
+    });
+
+    it('should be case insensitive', () => {
+      expect(matchesUserPatterns('CONFIG.JSON', ['*.json'])).toBe(true);
+      expect(matchesUserPatterns('.ENV', ['.env*'])).toBe(true);
+    });
+
+    it('should return false for empty patterns', () => {
+      expect(matchesUserPatterns('config.json', [])).toBe(false);
+    });
+
+    it('should handle full paths', () => {
+      expect(matchesUserPatterns('/path/to/config.json', ['*.json'])).toBe(true);
+      expect(matchesUserPatterns('/path/to/.env.local', ['.env*'])).toBe(true);
     });
   });
 });

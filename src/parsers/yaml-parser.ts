@@ -54,6 +54,13 @@ export class YamlParser extends BaseParser {
         // Build the full key path
         const fullKey = this.buildKeyPath(keyStack, key);
 
+        // Check if depth exceeds maxNestedDepth
+        const currentDepth = keyStack.length + 1;
+        if (currentDepth > this.options.maxNestedDepth) {
+          currentIndex += line.length + 1;
+          continue;
+        }
+
         if (hasValue && value !== null && value !== undefined) {
           // This line has a value
           const actualValueOffset = isCommented

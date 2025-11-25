@@ -102,5 +102,54 @@ describe('EnvParser', () => {
 
       expect(result[0].value).toBe('"Hello World"');
     });
+
+    it('should skip comments when includeCommented is false', () => {
+      const content = '# COMMENTED_KEY=secret\nAPI_KEY=value';
+      const parserNoComments = new EnvParser({ includeCommented: false });
+      const result = parserNoComments.parse(content);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('API_KEY');
+    });
+
+    it('should handle indented export statements', () => {
+      const content = '    export API_KEY=secret\n  export DB_HOST=localhost';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].key).toBe('API_KEY');
+      expect(result[1].key).toBe('DB_HOST');
+    });
+
+    it('should handle empty content', () => {
+      const result = parser.parse('');
+      expect(result).toHaveLength(0);
+    });
+
+    it('should handle only comments', () => {
+      const content = '# Comment 1\n# Comment 2';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('should handle mixed content with empty lines', () => {
+      const content = 'KEY1=value1\n\n\nKEY2=value2';
+      const result = parser.parse(content);
+
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('canParse edge cases', () => {
+    it('should handle files containing .envrc', () => {
+      expect(parser.canParse('/path/to/.envrc')).toBe(true);
+      expect(parser.canParse('.envrc.backup')).toBe(true);
+    });
+
+    it('should return false for non-env extensions', () => {
+      expect(parser.canParse('envfile.txt')).toBe(false);
+      expect(parser.canParse('notenv')).toBe(false);
+    });
   });
 });
