@@ -1,3 +1,9 @@
+## [1.2.1](https://github.com/zeybek/camouflage/compare/v1.2.0...v1.2.1) (2025-12-21)
+
+### Bug Fixes
+
+- minimize secret flashing on file open ([#11](https://github.com/zeybek/camouflage/issues/11), [#12](https://github.com/zeybek/camouflage/issues/12)) ([#13](https://github.com/zeybek/camouflage/issues/13)) ([6351b70](https://github.com/zeybek/camouflage/commit/6351b70cb30b510a743a0312675115b93299ce99))
+
 # [1.2.0](https://github.com/zeybek/camouflage/compare/v1.1.2...v1.2.0) (2025-11-25)
 
 ### Features
