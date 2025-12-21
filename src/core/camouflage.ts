@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
-import { Debounce, HandleErrors, Log, MeasurePerformance, ValidateConfig } from '../decorators';
+import { HandleErrors, Log, ValidateConfig } from '../decorators';
 import { generateHiddenText } from '../lib/text-generator';
 import { configureParserRegistry } from '../parsers';
 import * as config from '../utils/config';
 import {
   findAllEnvVariables,
   isSupportedFile,
-  ParsedVariable,
+  type ParsedVariable,
   parseFileContent,
 } from '../utils/file';
 import { matchesAnyPattern } from '../utils/pattern-matcher';
@@ -20,6 +20,8 @@ export class Camouflage {
   private decorationType: vscode.TextEditorDecorationType | undefined;
   private activeEditor: vscode.TextEditor | undefined;
   private statusBarItem: vscode.StatusBarItem;
+  // Map to track debounce timeouts per editor (by document URI)
+  private editorDebounceMap: Map<string, NodeJS.Timeout> = new Map();
 
   constructor() {
     this.activeEditor = vscode.window.activeTextEditor;
@@ -30,9 +32,9 @@ export class Camouflage {
     // Configure parser registry from settings
     this.configureParserRegistry();
 
-    if (this.activeEditor && isSupportedFile(this.activeEditor.document.fileName)) {
-      this.updateDecorations();
-    }
+    // Update ALL visible editors on startup (fixes Issue #11 & #12)
+    // This ensures decorations are applied immediately to all open files
+    this.updateAllVisibleEditors();
   }
 
   /**
@@ -94,10 +96,8 @@ export class Camouflage {
     // Update decoration type
     this.updateDecorationType();
 
-    // Force immediate update for the current file
-    if (this.activeEditor) {
-      this.updateDecorations();
-    }
+    // Force immediate update for ALL visible editors (fixes Issue #11 & #12)
+    this.updateAllVisibleEditors();
 
     // Listen for editor changes
     context.subscriptions.push(
@@ -109,17 +109,47 @@ export class Camouflage {
           // Only update decorations if this is a supported file
           if (isSupportedFile(editor.document.fileName)) {
             // Immediately update decorations without debounce when switching editors
-            this.updateDecorations();
+            this.updateDecorationsForEditor(editor);
           }
         }
+      })
+    );
+
+    // Listen for visible editors changes (fixes Issue #12 - split windows)
+    context.subscriptions.push(
+      vscode.window.onDidChangeVisibleTextEditors((editors) => {
+        // Update all visible editors when split layout changes
+        for (const editor of editors) {
+          if (isSupportedFile(editor.document.fileName)) {
+            this.updateDecorationsForEditor(editor);
+          }
+        }
+      })
+    );
+
+    // Listen for document open (fixes Issue #11 - flashing on file open)
+    context.subscriptions.push(
+      vscode.workspace.onDidOpenTextDocument((document) => {
+        // When a document is opened, find all editors showing it and update them
+        // Use setImmediate to ensure VS Code has finished rendering
+        setImmediate(() => {
+          for (const editor of vscode.window.visibleTextEditors) {
+            if (editor.document === document && isSupportedFile(document.fileName)) {
+              this.updateDecorationsForEditor(editor);
+            }
+          }
+        });
       })
     );
 
     // Listen for document changes
     context.subscriptions.push(
       vscode.workspace.onDidChangeTextDocument((event) => {
-        if (this.activeEditor && event.document === this.activeEditor.document) {
-          this.triggerUpdateDecorations();
+        // Update ALL visible editors showing this document (fixes Issue #12)
+        for (const editor of vscode.window.visibleTextEditors) {
+          if (editor.document === event.document && isSupportedFile(event.document.fileName)) {
+            this.triggerUpdateDecorationsForEditor(editor);
+          }
         }
       })
     );
@@ -132,12 +162,26 @@ export class Camouflage {
           this.configureParserRegistry();
           this.updateDecorationType();
           this.updateStatusBarItem();
+          // Update ALL visible editors when config changes (fixes Issue #12)
+          this.updateAllVisibleEditors();
         }
       })
     );
 
     // Register status bar item
     context.subscriptions.push(this.statusBarItem);
+  }
+
+  /**
+   * Update decorations for ALL visible editors
+   * This ensures split windows and multiple tabs are all protected
+   */
+  private updateAllVisibleEditors(): void {
+    for (const editor of vscode.window.visibleTextEditors) {
+      if (isSupportedFile(editor.document.fileName)) {
+        this.updateDecorationsForEditor(editor);
+      }
+    }
   }
 
   /**
@@ -172,32 +216,30 @@ export class Camouflage {
 
     this.decorationType = vscode.window.createTextEditorDecorationType(decorationOptions);
 
-    if (this.activeEditor) {
-      // Immediately update decorations without debounce
-      this.updateDecorations();
-    }
+    // Immediately update ALL visible editors (fixes Issue #12)
+    this.updateAllVisibleEditors();
   }
 
   /**
-   * Update decorations in the editor
-   * Uses the new parser system for multi-format support
+   * Update decorations for a specific editor
+   * This is the main decoration update method that handles any editor
+   * Fixes Issue #11 & #12 by working with specific editors instead of just activeEditor
    */
-  @MeasurePerformance()
   @HandleErrors()
-  private updateDecorations(): void {
-    if (!this.activeEditor || !this.decorationType) {
+  private updateDecorationsForEditor(editor: vscode.TextEditor): void {
+    if (!this.decorationType) {
       return;
     }
 
     // Check if this is a supported file
-    const fileName = this.activeEditor.document.fileName;
+    const fileName = editor.document.fileName;
     if (!isSupportedFile(fileName)) {
       return;
     }
 
     // Check if the extension is enabled
     if (!config.isEnabled()) {
-      this.activeEditor.setDecorations(this.decorationType, []);
+      editor.setDecorations(this.decorationType, []);
       return;
     }
 
@@ -210,7 +252,7 @@ export class Camouflage {
     const showPreview = config.shouldShowPreview();
     const hoverMessage = config.getHoverMessage();
 
-    const text = this.activeEditor.document.getText();
+    const text = editor.document.getText();
     const decorations: vscode.DecorationOptions[] = [];
 
     // Try to use the new parser system first
@@ -218,7 +260,8 @@ export class Camouflage {
 
     if (parsedVariables.length > 0) {
       // Use new parser system
-      this.processParserResults(
+      this.processParserResultsForEditor(
+        editor,
         parsedVariables,
         decorations,
         style,
@@ -229,7 +272,8 @@ export class Camouflage {
       );
     } else {
       // Fallback to legacy system for .env files
-      this.processLegacyEnvFile(
+      this.processLegacyEnvFileForEditor(
+        editor,
         text,
         decorations,
         style,
@@ -240,13 +284,14 @@ export class Camouflage {
       );
     }
 
-    this.activeEditor.setDecorations(this.decorationType, decorations);
+    editor.setDecorations(this.decorationType, decorations);
   }
 
   /**
-   * Process results from the new parser system
+   * Process results from the new parser system for a specific editor
    */
-  private processParserResults(
+  private processParserResultsForEditor(
+    editor: vscode.TextEditor,
     variables: ParsedVariable[],
     decorations: vscode.DecorationOptions[],
     style: HiddenTextStyle,
@@ -255,10 +300,6 @@ export class Camouflage {
     showPreview: boolean,
     hoverMessage: string
   ): void {
-    if (!this.activeEditor) {
-      return;
-    }
-
     const excludeKeys = config.getExcludeKeys();
     const isSelectiveEnabled = config.isSelectiveHidingEnabled();
     const keyPatterns = config.getKeyPatterns();
@@ -289,8 +330,8 @@ export class Camouflage {
       }
 
       // Calculate positions
-      const valueStartPos = this.activeEditor.document.positionAt(startIndex);
-      const valueEndPos = this.activeEditor.document.positionAt(endIndex);
+      const valueStartPos = editor.document.positionAt(startIndex);
+      const valueEndPos = editor.document.positionAt(endIndex);
 
       // Generate hidden text based on value length and style
       const valueLength = value.length;
@@ -324,9 +365,10 @@ export class Camouflage {
   }
 
   /**
-   * Process .env files using the legacy system (backward compatibility)
+   * Process .env files using the legacy system for a specific editor
    */
-  private processLegacyEnvFile(
+  private processLegacyEnvFileForEditor(
+    editor: vscode.TextEditor,
     text: string,
     decorations: vscode.DecorationOptions[],
     style: HiddenTextStyle,
@@ -376,15 +418,9 @@ export class Camouflage {
           continue; // Skip if index is undefined (shouldn't happen with matchAll, but for type safety)
         }
 
-        if (!this.activeEditor) {
-          continue; // Skip if activeEditor is undefined
-        }
-
         const equalsSignPos = match[0].indexOf('=');
-        const valueStartPos = this.activeEditor.document.positionAt(
-          match.index + equalsSignPos + 1
-        );
-        const valueEndPos = this.activeEditor.document.positionAt(match.index + match[0].length);
+        const valueStartPos = editor.document.positionAt(match.index + equalsSignPos + 1);
+        const valueEndPos = editor.document.positionAt(match.index + match[0].length);
 
         // Generate hidden text based on value length and style
         const valueLength = value.length;
@@ -421,11 +457,28 @@ export class Camouflage {
   }
 
   /**
-   * Trigger an update of decorations with debounce
+   * Trigger an update of decorations for a specific editor with debounce
+   * Uses a per-editor debounce map to avoid race conditions
    */
-  @Debounce(50)
-  private triggerUpdateDecorations(): void {
-    this.updateDecorations();
+  private triggerUpdateDecorationsForEditor(editor: vscode.TextEditor): void {
+    const key = editor.document.uri.toString();
+
+    // Clear existing timeout for this editor
+    const existingTimeout = this.editorDebounceMap.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      this.editorDebounceMap.delete(key);
+      // Check if editor is still valid (visible)
+      if (vscode.window.visibleTextEditors.includes(editor)) {
+        this.updateDecorationsForEditor(editor);
+      }
+    }, 50);
+
+    this.editorDebounceMap.set(key, timeout);
   }
 
   /**
@@ -435,6 +488,12 @@ export class Camouflage {
   @Log('Disposing camouflage resources')
   @HandleErrors()
   public dispose(): void {
+    // Clear all debounce timeouts
+    for (const timeout of this.editorDebounceMap.values()) {
+      clearTimeout(timeout);
+    }
+    this.editorDebounceMap.clear();
+
     // Dispose decoration type if it exists
     if (this.decorationType) {
       this.decorationType.dispose();
