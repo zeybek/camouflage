@@ -1,3 +1,9 @@
+# [1.3.0](https://github.com/zeybek/camouflage/compare/v1.2.1...v1.3.0) (2026-02-08)
+
+### Features
+
+- **core:** add double-click to edit secret via InputBox ([#15](https://github.com/zeybek/camouflage/issues/15)) ([cbd8623](https://github.com/zeybek/camouflage/commit/cbd8623cab31979e5fa6be0a10d56dd23f7d41be)), closes [#14](https://github.com/zeybek/camouflage/issues/14)
+
 ## [1.2.1](https://github.com/zeybek/camouflage/compare/v1.2.0...v1.2.1) (2025-12-21)
 
 ### Bug Fixes
