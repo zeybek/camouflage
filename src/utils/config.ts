@@ -191,6 +191,19 @@ export function isParserEnabled(parserType: ParserType): boolean {
 }
 
 // ============================================================================
+// Editing
+// ============================================================================
+
+/**
+ * Check if double-click to edit is enabled
+ */
+export function isDoubleClickEditEnabled(): boolean {
+  return vscode.workspace
+    .getConfiguration(CONFIG_SECTION)
+    .get('editing.enableDoubleClickEdit', true);
+}
+
+// ============================================================================
 // File Exclusion
 // ============================================================================
 
