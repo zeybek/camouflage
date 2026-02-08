@@ -43,12 +43,12 @@ const mock = {
       return Promise.resolve(undefined);
     },
     onDidChangeTextEditorSelection: function (
-      _listener: (e: vscode.TextEditorSelectionChangeEvent) => any
+      _listener: (e: vscode.TextEditorSelectionChangeEvent) => void
     ): vscode.Disposable {
       return { dispose: function () {} };
     },
     onDidChangeVisibleTextEditors: function (
-      _listener: (e: readonly vscode.TextEditor[]) => any
+      _listener: (e: readonly vscode.TextEditor[]) => void
     ): vscode.Disposable {
       return { dispose: function () {} };
     },
@@ -83,7 +83,7 @@ const mock = {
       return { dispose: function () {} };
     },
     onDidOpenTextDocument: function (
-      _listener: (e: vscode.TextDocument) => any
+      _listener: (e: vscode.TextDocument) => void
     ): vscode.Disposable {
       return { dispose: function () {} };
     },
