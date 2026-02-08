@@ -392,6 +392,25 @@ describe('config utils', () => {
     });
   });
 
+  describe('isDoubleClickEditEnabled', () => {
+    it('should return true by default', () => {
+      expect(config.isDoubleClickEditEnabled()).toBe(true);
+      expect(mockConfig.get).toHaveBeenCalledWith('editing.enableDoubleClickEdit', true);
+    });
+
+    it('should return the configured value', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'editing.enableDoubleClickEdit') {
+          return false;
+        }
+        return defaultValue;
+      });
+
+      expect(config.isDoubleClickEditEnabled()).toBe(false);
+    });
+  });
+
   describe('getExcludedFiles', () => {
     it('should return empty array by default', () => {
       expect(config.getExcludedFiles()).toEqual([]);

@@ -39,6 +39,19 @@ const mock = {
     showTextDocument: function (_document: vscode.TextDocument): Thenable<vscode.TextEditor> {
       return Promise.resolve({} as vscode.TextEditor);
     },
+    showInputBox: function (_options?: vscode.InputBoxOptions): Thenable<string | undefined> {
+      return Promise.resolve(undefined);
+    },
+    onDidChangeTextEditorSelection: function (
+      _listener: (e: vscode.TextEditorSelectionChangeEvent) => void
+    ): vscode.Disposable {
+      return { dispose: function () {} };
+    },
+    onDidChangeVisibleTextEditors: function (
+      _listener: (e: readonly vscode.TextEditor[]) => void
+    ): vscode.Disposable {
+      return { dispose: function () {} };
+    },
   },
 
   // Mock for VS Code's workspace namespace
@@ -69,6 +82,11 @@ const mock = {
     ): vscode.Disposable {
       return { dispose: function () {} };
     },
+    onDidOpenTextDocument: function (
+      _listener: (e: vscode.TextDocument) => void
+    ): vscode.Disposable {
+      return { dispose: function () {} };
+    },
     getWorkspaceFolder: function (_uri: vscode.Uri): vscode.WorkspaceFolder | undefined {
       return undefined;
     },
@@ -92,6 +110,7 @@ const mock = {
         'camouflage.toggleValue',
         'camouflage.toggleSelective',
         'camouflage.addToExcludeList',
+        'camouflage.editValue',
       ]);
     },
   },
@@ -136,6 +155,12 @@ const mock = {
     Left: 1,
     Right: 2,
   } as typeof vscode.StatusBarAlignment,
+
+  TextEditorSelectionChangeKind: {
+    Keyboard: 1,
+    Mouse: 2,
+    Command: 3,
+  } as typeof vscode.TextEditorSelectionChangeKind,
 
   // Mock for VS Code's classes
   Range: class MockRange implements vscode.Range {
@@ -432,3 +457,4 @@ export const Position = mock.Position;
 export const ExtensionContext = mock.ExtensionContext;
 export const Disposable = mock.Disposable;
 export const ThemeColor = mock.ThemeColor;
+export const TextEditorSelectionChangeKind = mock.TextEditorSelectionChangeKind;

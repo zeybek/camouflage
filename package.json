@@ -111,6 +111,11 @@
         "command": "camouflage.includeFile",
         "title": "Camouflage: Include This File",
         "icon": "$(add)"
+      },
+      {
+        "command": "camouflage.editValue",
+        "title": "Camouflage: Edit Value",
+        "icon": "$(edit)"
       }
     ],
     "configuration": {
@@ -262,6 +267,12 @@
           "description": "Keys that should never be hidden",
           "category": "Selective Hiding"
         },
+        "camouflage.editing.enableDoubleClickEdit": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable double-click on a camouflaged value to edit it via an input box (keeps the value hidden in the editor)",
+          "category": "Editing"
+        },
         "camouflage.parsers.enabled": {
           "type": "array",
           "items": {
@@ -326,6 +337,12 @@
         "key": "ctrl+shift+s",
         "mac": "cmd+shift+s",
         "when": "editorTextFocus && resourceFilename =~ /.*(env|json|ya?ml|properties|ini|conf|toml|sh).*/"
+      },
+      {
+        "command": "camouflage.editValue",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "editorTextFocus && config.camouflage.enabled == true && resourceFilename =~ /.*(env|json|ya?ml|properties|ini|conf|toml|sh).*/"
       }
     ],
     "menus": {
@@ -354,6 +371,11 @@
         {
           "command": "camouflage.addToExcludeList",
           "group": "2_selection@2"
+        },
+        {
+          "when": "config.camouflage.enabled == true",
+          "command": "camouflage.editValue",
+          "group": "2_selection@3"
         },
         {
           "command": "camouflage.toggleSelective",

@@ -4,6 +4,8 @@ import * as vscode from 'vscode';
 import { Camouflage } from './core/camouflage';
 import { getParserRegistry } from './parsers';
 import * as config from './utils/config';
+import { isSupportedFile, type ParsedVariable } from './utils/file';
+import { matchesAnyPattern } from './utils/pattern-matcher';
 
 let camouflage: Camouflage;
 
@@ -82,6 +84,71 @@ function extractKeyAtCursor(
   }
 
   return null;
+}
+
+/**
+ * Find the ParsedVariable at the cursor position
+ * Returns the full variable info including key, value, and range
+ */
+function findVariableAtCursor(
+  document: vscode.TextDocument,
+  position: vscode.Position
+): ParsedVariable | null {
+  const fileName = document.fileName;
+  const text = document.getText();
+  const cursorOffset = document.offsetAt(position);
+
+  // Get parser for this file
+  const registry = getParserRegistry();
+  const parser = registry.findParserForFile(fileName);
+
+  if (!parser) {
+    return null;
+  }
+
+  // Parse the file and find the variable at cursor position
+  const variables = parser.parse(text);
+
+  for (const variable of variables) {
+    // Check if cursor is on the same line as the variable
+    if (variable.lineNumber === position.line) {
+      return variable;
+    }
+
+    // For multi-line scenarios, check if cursor is within the value range
+    if (cursorOffset >= variable.startIndex && cursorOffset <= variable.endIndex) {
+      return variable;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Check if a ParsedVariable is currently camouflaged (not excluded, matches patterns if selective)
+ */
+function isVariableCamouflaged(variable: ParsedVariable): boolean {
+  if (!config.isEnabled()) {
+    return false;
+  }
+
+  if (!variable.value.trim()) {
+    return false;
+  }
+
+  const excludeKeys = config.getExcludeKeys();
+  if (excludeKeys.length > 0 && matchesAnyPattern(variable.key, excludeKeys)) {
+    return false;
+  }
+
+  if (config.isSelectiveHidingEnabled()) {
+    const keyPatterns = config.getKeyPatterns();
+    if (!matchesAnyPattern(variable.key, keyPatterns)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**
@@ -433,6 +500,103 @@ export function activate(context: vscode.ExtensionContext): void {
       await config.removeExcludedFile(filePath);
       vscode.window.showInformationMessage(`Included "${fileName}" back in Camouflage`);
       setTimeout(() => camouflage.updateDecorationType(), 0);
+    })
+  );
+
+  // Edit value under cursor (Issue #14)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('camouflage.editValue', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        return;
+      }
+
+      const document = editor.document;
+      const position = editor.selection.start;
+
+      const variable = findVariableAtCursor(document, position);
+      if (!variable) {
+        vscode.window.showWarningMessage('No configuration value found at cursor position');
+        return;
+      }
+
+      if (!isVariableCamouflaged(variable)) {
+        vscode.window.showInformationMessage(
+          `"${variable.key}" is not camouflaged — you can edit it directly`
+        );
+        return;
+      }
+
+      const newValue = await vscode.window.showInputBox({
+        prompt: `Edit value for "${variable.key}"`,
+        value: variable.value,
+        placeHolder: 'Enter new value',
+      });
+
+      if (newValue === undefined) {
+        return; // User cancelled
+      }
+
+      if (newValue === variable.value) {
+        return; // No change
+      }
+
+      // Replace the value in the document
+      const startPos = document.positionAt(variable.startIndex);
+      const endPos = document.positionAt(variable.endIndex);
+      const range = new vscode.Range(startPos, endPos);
+
+      await editor.edit((editBuilder) => {
+        editBuilder.replace(range, newValue);
+      });
+    })
+  );
+
+  // Double-click to edit: listen for mouse-based word selections on camouflaged values
+  let lastMouseSelectionTime = 0;
+  let lastMouseLine = -1;
+
+  context.subscriptions.push(
+    vscode.window.onDidChangeTextEditorSelection((event) => {
+      // Only process if double-click edit is enabled
+      if (!config.isDoubleClickEditEnabled()) {
+        return;
+      }
+
+      // Only process mouse-triggered selections
+      if (event.kind !== vscode.TextEditorSelectionChangeKind.Mouse) {
+        return;
+      }
+
+      const editor = event.textEditor;
+      if (!isSupportedFile(editor.document.fileName)) {
+        return;
+      }
+
+      if (!config.isEnabled()) {
+        return;
+      }
+
+      const selection = event.selections[0];
+      const now = Date.now();
+      const currentLine = selection.start.line;
+
+      // Detect double-click: non-empty selection (word selected) on same line within 600ms
+      if (
+        !selection.isEmpty &&
+        currentLine === lastMouseLine &&
+        now - lastMouseSelectionTime < 600
+      ) {
+        // Check if the selection falls within a camouflaged variable
+        const variable = findVariableAtCursor(editor.document, selection.start);
+        if (variable && isVariableCamouflaged(variable)) {
+          // Execute the edit command
+          vscode.commands.executeCommand('camouflage.editValue');
+        }
+      }
+
+      lastMouseSelectionTime = now;
+      lastMouseLine = currentLine;
     })
   );
 }
