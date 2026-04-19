@@ -20,8 +20,10 @@ export class JsonParser extends BaseParser {
       // Parse the JSON to get structure
       const parsed = JSON.parse(content);
 
-      // Recursively extract variables
-      this.extractVariables(parsed, content, '', 0, variables);
+      // Recursively extract variables, advancing a shared search cursor so
+      // duplicate key+value pairs (e.g. arrays of objects) map to distinct
+      // source positions instead of all collapsing onto the first match.
+      this.extractVariables(parsed, content, '', 0, variables, { offset: 0 });
     } catch {
       // If JSON is invalid, try to parse what we can using regex
       this.parseWithRegex(content, variables);
@@ -38,7 +40,8 @@ export class JsonParser extends BaseParser {
     content: string,
     keyPrefix: string,
     depth: number,
-    variables: ParsedVariable[]
+    variables: ParsedVariable[],
+    cursor: { offset: number }
   ): void {
     if (depth > this.options.maxNestedDepth) {
       return;
@@ -52,8 +55,9 @@ export class JsonParser extends BaseParser {
       const fullKey = keyPrefix ? `${keyPrefix}.${key}` : key;
 
       if (typeof value === 'string') {
-        // Find the position of this key-value in the original content
-        const position = this.findValuePosition(content, key, value);
+        // Find the position of this key-value starting from the cursor so
+        // repeated occurrences of the same key+value are matched in order.
+        const position = this.findValuePosition(content, key, value, cursor.offset);
         if (position) {
           variables.push(
             this.createVariable(
@@ -66,10 +70,11 @@ export class JsonParser extends BaseParser {
               false
             )
           );
+          cursor.offset = position.endIndex;
         }
       } else if (typeof value === 'object' && value !== null) {
         // Recurse into nested objects
-        this.extractVariables(value, content, fullKey, depth + 1, variables);
+        this.extractVariables(value, content, fullKey, depth + 1, variables, cursor);
       }
     }
   }
@@ -80,7 +85,8 @@ export class JsonParser extends BaseParser {
   private findValuePosition(
     content: string,
     key: string,
-    value: string
+    value: string,
+    fromIndex: number = 0
   ): { startIndex: number; endIndex: number } | null {
     // Escape special regex characters in key and value
     const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -88,6 +94,7 @@ export class JsonParser extends BaseParser {
 
     // Match "key": "value" pattern
     const pattern = new RegExp(`"${escapedKey}"\\s*:\\s*"(${escapedValue})"`, 'g');
+    pattern.lastIndex = fromIndex;
 
     const match: RegExpExecArray | null = pattern.exec(content);
     if (match) {
