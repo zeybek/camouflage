@@ -1,3 +1,9 @@
+## [1.3.1](https://github.com/zeybek/camouflage/compare/v1.3.0...v1.3.1) (2026-04-19)
+
+### Bug Fixes
+
+- **parsers:** hide all duplicate key occurrences in JSON ([#17](https://github.com/zeybek/camouflage/issues/17)) ([ca77f7e](https://github.com/zeybek/camouflage/commit/ca77f7e8a532f3dadc78b5dd56c09d18736e4c11))
+
 # [1.3.0](https://github.com/zeybek/camouflage/compare/v1.2.1...v1.3.0) (2026-02-08)
 
 ### Features
