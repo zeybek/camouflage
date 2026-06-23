@@ -129,7 +129,7 @@ export class YamlParser extends BaseParser {
         continue;
       }
 
-      if (hasValue && value !== null && value !== undefined) {
+      if (hasValue && value !== null) {
         // Block scalars ("key: |" / "key: >"): the value is just the indicator;
         // the body lives on the following more-indented lines, masked as one span.
         const indicator = value.trim();
