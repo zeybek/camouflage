@@ -1,3 +1,9 @@
+# [1.4.0](https://github.com/zeybek/camouflage/compare/v1.3.1...v1.4.0) (2026-06-23)
+
+### Features
+
+- **parsers:** mask escaped, multi-line, numeric and array values ([#18](https://github.com/zeybek/camouflage/issues/18)) ([5977d15](https://github.com/zeybek/camouflage/commit/5977d15a56fbabe64602ee9c5ff6cdeb4b2bd2d1))
+
 ## [1.3.1](https://github.com/zeybek/camouflage/compare/v1.3.0...v1.3.1) (2026-04-19)
 
 ### Bug Fixes
