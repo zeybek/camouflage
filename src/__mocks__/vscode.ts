@@ -3,6 +3,15 @@
  */
 import * as vscode from 'vscode';
 
+// Captured event listeners so tests can drive the extension's event handlers.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const listeners: Record<string, Array<(arg: any) => any>> = {};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function register(name: string, cb: (arg: any) => any): vscode.Disposable {
+  (listeners[name] = listeners[name] || []).push(cb);
+  return { dispose: function () {} };
+}
+
 // Create a mock implementation of the VS Code API
 const mock = {
   // Mock for VS Code's window namespace
@@ -32,9 +41,9 @@ const mock = {
       } as vscode.StatusBarItem;
     },
     onDidChangeActiveTextEditor: function (
-      _listener: (e: vscode.TextEditor | undefined) => any
+      listener: (e: vscode.TextEditor | undefined) => any
     ): vscode.Disposable {
-      return { dispose: function () {} };
+      return register('activeTextEditor', listener);
     },
     showTextDocument: function (_document: vscode.TextDocument): Thenable<vscode.TextEditor> {
       return Promise.resolve({} as vscode.TextEditor);
@@ -43,14 +52,14 @@ const mock = {
       return Promise.resolve(undefined);
     },
     onDidChangeTextEditorSelection: function (
-      _listener: (e: vscode.TextEditorSelectionChangeEvent) => void
+      listener: (e: vscode.TextEditorSelectionChangeEvent) => void
     ): vscode.Disposable {
-      return { dispose: function () {} };
+      return register('textEditorSelection', listener);
     },
     onDidChangeVisibleTextEditors: function (
-      _listener: (e: readonly vscode.TextEditor[]) => void
+      listener: (e: readonly vscode.TextEditor[]) => void
     ): vscode.Disposable {
-      return { dispose: function () {} };
+      return register('visibleTextEditors', listener);
     },
   },
 
@@ -73,19 +82,19 @@ const mock = {
       } as vscode.WorkspaceConfiguration;
     },
     onDidChangeConfiguration: function (
-      _listener: (e: vscode.ConfigurationChangeEvent) => any
+      listener: (e: vscode.ConfigurationChangeEvent) => any
     ): vscode.Disposable {
-      return { dispose: function () {} };
+      return register('configuration', listener);
     },
     onDidChangeTextDocument: function (
-      _listener: (e: vscode.TextDocumentChangeEvent) => any
+      listener: (e: vscode.TextDocumentChangeEvent) => any
     ): vscode.Disposable {
-      return { dispose: function () {} };
+      return register('textDocument', listener);
     },
     onDidOpenTextDocument: function (
-      _listener: (e: vscode.TextDocument) => void
+      listener: (e: vscode.TextDocument) => void
     ): vscode.Disposable {
-      return { dispose: function () {} };
+      return register('openTextDocument', listener);
     },
     getWorkspaceFolder: function (_uri: vscode.Uri): vscode.WorkspaceFolder | undefined {
       return undefined;
@@ -169,11 +178,24 @@ const mock = {
     readonly isEmpty: boolean;
     readonly isSingleLine: boolean;
 
-    constructor(startLine: number, startCharacter: number, endLine: number, endCharacter: number) {
-      this.start = new MockPosition(startLine, startCharacter);
-      this.end = new MockPosition(endLine, endCharacter);
-      this.isEmpty = false;
-      this.isSingleLine = startLine === endLine;
+    constructor(
+      startOrStartLine: vscode.Position | number,
+      startCharacterOrEnd: vscode.Position | number,
+      endLine?: number,
+      endCharacter?: number
+    ) {
+      if (typeof startOrStartLine === 'number') {
+        // (startLine, startCharacter, endLine, endCharacter)
+        this.start = new MockPosition(startOrStartLine, startCharacterOrEnd as number);
+        this.end = new MockPosition(endLine as number, endCharacter as number);
+      } else {
+        // (start: Position, end: Position) — the form used by the extension.
+        this.start = startOrStartLine;
+        this.end = startCharacterOrEnd as vscode.Position;
+      }
+      this.isEmpty =
+        this.start.line === this.end.line && this.start.character === this.end.character;
+      this.isSingleLine = this.start.line === this.end.line;
     }
 
     contains(_position: vscode.Position): boolean {
@@ -458,3 +480,16 @@ export const ExtensionContext = mock.ExtensionContext;
 export const Disposable = mock.Disposable;
 export const ThemeColor = mock.ThemeColor;
 export const TextEditorSelectionChangeKind = mock.TextEditorSelectionChangeKind;
+
+// Test helpers to drive captured event listeners.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function __emit(name: string, arg?: any): void {
+  for (const cb of listeners[name] || []) {
+    cb(arg);
+  }
+}
+export function __clearListeners(): void {
+  for (const key of Object.keys(listeners)) {
+    delete listeners[key];
+  }
+}

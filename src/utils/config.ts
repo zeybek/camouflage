@@ -18,13 +18,6 @@ export function isEnabled(): boolean {
 }
 
 /**
- * Check if auto hide is enabled
- */
-export function isAutoHideEnabled(): boolean {
-  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('autoHide', true);
-}
-
-/**
  * Get the file patterns
  */
 export function getFilePatterns(): string[] {
@@ -38,6 +31,8 @@ export function getFilePatterns(): string[] {
       '*.yaml',
       '*.yml',
       '*.properties',
+      '*.ini',
+      '*.conf',
       '*.toml',
     ]);
 }
@@ -104,7 +99,7 @@ export async function disable(): Promise<void> {
  * Check if the preview should be shown
  */
 export function shouldShowPreview(): boolean {
-  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('hover.showPreview', true);
+  return vscode.workspace.getConfiguration(CONFIG_SECTION).get('hover.showPreview', false);
 }
 
 /**
@@ -113,7 +108,7 @@ export function shouldShowPreview(): boolean {
 export function getHoverMessage(): string {
   return vscode.workspace
     .getConfiguration(CONFIG_SECTION)
-    .get('hover.message', 'Hidden by Camouflage');
+    .get('hover.message', 'Environment value hidden by Camouflage extension');
 }
 
 /**
@@ -131,6 +126,10 @@ export function getKeyPatterns(): string[] {
       '*DB*',
       '*DATABASE*',
       '*PORT*',
+      '*CONNECTION*',
+      '*CREDENTIAL*',
+      '*AUTH*',
+      '*PRIVATE*',
     ]);
 }
 
@@ -223,11 +222,9 @@ export function isFileExcluded(filePath: string): boolean {
 
   return excludedFiles.some((excluded) => {
     const normalizedExcluded = excluded.replace(/\\/g, '/');
-    // Check exact match or if path ends with the excluded pattern
+    // Full-path match, or a path-segment boundary match (".../<excluded>").
     return (
-      normalizedPath === normalizedExcluded ||
-      normalizedPath.endsWith('/' + normalizedExcluded) ||
-      normalizedPath.endsWith(normalizedExcluded)
+      normalizedPath === normalizedExcluded || normalizedPath.endsWith('/' + normalizedExcluded)
     );
   });
 }
@@ -255,9 +252,7 @@ export async function removeExcludedFile(filePath: string): Promise<void> {
   const filtered = excludedFiles.filter((excluded) => {
     const normalizedExcluded = excluded.replace(/\\/g, '/');
     return !(
-      normalizedPath === normalizedExcluded ||
-      normalizedPath.endsWith('/' + normalizedExcluded) ||
-      normalizedPath.endsWith(normalizedExcluded)
+      normalizedPath === normalizedExcluded || normalizedPath.endsWith('/' + normalizedExcluded)
     );
   });
 

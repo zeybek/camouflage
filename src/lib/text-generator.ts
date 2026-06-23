@@ -39,8 +39,8 @@ function scrambleText(text: string): string {
     return '*'.repeat(text.length);
   }
 
-  // Convert to array for shuffling
-  const chars = text.split('');
+  // Array.from (not split) keeps surrogate pairs / emoji intact.
+  const chars = Array.from(text);
 
   // Fisher-Yates shuffle algorithm
   for (let i = chars.length - 1; i > 0; i--) {
@@ -48,28 +48,6 @@ function scrambleText(text: string): string {
     const j = Math.floor(Math.random() * (i + 1));
     // Swap characters at indices i and j
     [chars[i], chars[j]] = [chars[j], chars[i]];
-  }
-
-  // Optional: preserve first and last character position for better security
-  // as the first and last characters are often more identifiable
-  if (text.length > 3) {
-    // Swap back the first and last characters to their original positions
-    if (chars[0] !== text[0]) {
-      const firstCharIndex = chars.findIndex((char) => char === text[0]);
-      if (firstCharIndex !== -1) {
-        [chars[0], chars[firstCharIndex]] = [chars[firstCharIndex], chars[0]];
-      }
-    }
-
-    if (chars[chars.length - 1] !== text[text.length - 1]) {
-      const lastCharIndex = chars.findIndex((char) => char === text[text.length - 1]);
-      if (lastCharIndex !== -1) {
-        [chars[chars.length - 1], chars[lastCharIndex]] = [
-          chars[lastCharIndex],
-          chars[chars.length - 1],
-        ];
-      }
-    }
   }
 
   return chars.join('');

@@ -127,12 +127,6 @@
           "description": "Enable or disable hiding of environment values",
           "category": "General"
         },
-        "camouflage.autoHide": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically hide values when opening supported files",
-          "category": "General"
-        },
         "camouflage.files.patterns": {
           "type": "array",
           "items": {

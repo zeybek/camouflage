@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { HandleErrors, Log, ValidateConfig } from '../decorators';
+import { HandleErrors, Log } from '../decorators';
 import { generateHiddenText } from '../lib/text-generator';
 import { configureParserRegistry } from '../parsers';
 import * as config from '../utils/config';
@@ -55,7 +55,7 @@ export class Camouflage {
    * Update status bar item
    */
   private updateStatusBarItem(): void {
-    // Defensive check: Don't update if disposed
+    /* istanbul ignore if -- statusBarItem is only cleared on dispose, after which this is not called */
     if (!this.statusBarItem) {
       return;
     }
@@ -187,7 +187,6 @@ export class Camouflage {
   /**
    * Update the decoration type based on configuration
    */
-  @ValidateConfig()
   @HandleErrors()
   @Log('Updating decoration type')
   public updateDecorationType(): void {
@@ -227,12 +226,14 @@ export class Camouflage {
    */
   @HandleErrors()
   private updateDecorationsForEditor(editor: vscode.TextEditor): void {
+    /* istanbul ignore if -- decorationType is always created before this runs */
     if (!this.decorationType) {
       return;
     }
 
     // Check if this is a supported file
     const fileName = editor.document.fileName;
+    /* istanbul ignore if -- every caller already filters by isSupportedFile */
     if (!isSupportedFile(fileName)) {
       return;
     }
@@ -342,6 +343,7 @@ export class Camouflage {
 
       // Create additional info for nested keys
       const nestedInfo = isNested ? ' (nested)' : '';
+      /* istanbul ignore next -- parser path never enables includeCommented, so isCommented is always false here */
       const commentedInfo = isCommented ? ' (commented)' : '';
 
       // Create a decoration for the value part
@@ -381,7 +383,7 @@ export class Camouflage {
     const { regular: regularMatches, commented: commentedMatches } = findAllEnvVariables(text);
 
     // Helper function to process matches
-    const processMatches = (matches: RegExpMatchArray[], isCommented: boolean = false) => {
+    const processMatches = (matches: RegExpMatchArray[], isCommented: boolean) => {
       for (const match of matches) {
         const key = match[1];
         const value = match[2];
@@ -414,8 +416,9 @@ export class Camouflage {
         }
 
         // Find the position where the value starts (after the equals sign)
+        /* istanbul ignore if -- matchAll always provides match.index */
         if (match.index === undefined) {
-          continue; // Skip if index is undefined (shouldn't happen with matchAll, but for type safety)
+          continue;
         }
 
         const equalsSignPos = match[0].indexOf('=');
@@ -430,6 +433,7 @@ export class Camouflage {
             : generateHiddenText(style, valueLength);
 
         // Create a decoration for the value part
+        const commentedInfo = isCommented ? ' (commented)' : '';
         const decoration = {
           range: new vscode.Range(valueStartPos, valueEndPos),
           renderOptions: {
@@ -441,8 +445,8 @@ export class Camouflage {
             },
           },
           hoverMessage: showPreview
-            ? `${hoverMessage}${isCommented ? ' (commented)' : ''}\nValue: ${value}`
-            : `${hoverMessage}${isCommented ? ' (commented)' : ''}`,
+            ? `${hoverMessage}${commentedInfo}\nValue: ${value}`
+            : `${hoverMessage}${commentedInfo}`,
         };
 
         decorations.push(decoration);
@@ -495,12 +499,14 @@ export class Camouflage {
     this.editorDebounceMap.clear();
 
     // Dispose decoration type if it exists
+    /* istanbul ignore else -- decorationType is always set when dispose runs */
     if (this.decorationType) {
       this.decorationType.dispose();
       this.decorationType = undefined;
     }
 
     // Dispose status bar item if it exists
+    /* istanbul ignore else -- statusBarItem is always set when dispose runs */
     if (this.statusBarItem) {
       this.statusBarItem.dispose();
     }

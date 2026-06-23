@@ -61,24 +61,6 @@ describe('config utils', () => {
     });
   });
 
-  describe('isAutoHideEnabled', () => {
-    it('should return true by default', () => {
-      expect(config.isAutoHideEnabled()).toBe(true);
-      expect(mockConfig.get).toHaveBeenCalledWith('autoHide', true);
-    });
-
-    it('should return the configured value', () => {
-      mockConfig.get.mockImplementation((key: string) => {
-        if (key === 'autoHide') {
-          return false;
-        }
-        return true;
-      });
-
-      expect(config.isAutoHideEnabled()).toBe(false);
-    });
-  });
-
   describe('getFilePatterns', () => {
     it('should return default patterns', () => {
       const defaultPatterns = [
@@ -89,6 +71,8 @@ describe('config utils', () => {
         '*.yaml',
         '*.yml',
         '*.properties',
+        '*.ini',
+        '*.conf',
         '*.toml',
       ];
       expect(config.getFilePatterns()).toEqual(defaultPatterns);
@@ -185,27 +169,27 @@ describe('config utils', () => {
   });
 
   describe('shouldShowPreview', () => {
-    it('should return true by default', () => {
-      expect(config.shouldShowPreview()).toBe(true);
-      expect(mockConfig.get).toHaveBeenCalledWith('hover.showPreview', true);
+    it('should return false by default', () => {
+      expect(config.shouldShowPreview()).toBe(false);
+      expect(mockConfig.get).toHaveBeenCalledWith('hover.showPreview', false);
     });
 
     it('should return configured value', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
         if (key === 'hover.showPreview') {
-          return false;
+          return true;
         }
         return defaultValue;
       });
 
-      expect(config.shouldShowPreview()).toBe(false);
+      expect(config.shouldShowPreview()).toBe(true);
     });
   });
 
   describe('getHoverMessage', () => {
     it('should return default hover message', () => {
-      const defaultMessage = 'Hidden by Camouflage';
+      const defaultMessage = 'Environment value hidden by Camouflage extension';
       expect(config.getHoverMessage()).toBe(defaultMessage);
       expect(mockConfig.get).toHaveBeenCalledWith('hover.message', defaultMessage);
     });
@@ -254,6 +238,10 @@ describe('config utils', () => {
         '*DB*',
         '*DATABASE*',
         '*PORT*',
+        '*CONNECTION*',
+        '*CREDENTIAL*',
+        '*AUTH*',
+        '*PRIVATE*',
       ];
 
       expect(config.getKeyPatterns()).toEqual(defaultPatterns);
@@ -482,6 +470,32 @@ describe('config utils', () => {
       });
 
       expect(config.isFileExcluded('/path/to/file.json')).toBe(false);
+    });
+
+    it('should not over-match a sibling file that merely shares a suffix', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return ['prod.env'];
+        }
+        return defaultValue;
+      });
+
+      expect(config.isFileExcluded('/work/prod.env')).toBe(true); // segment boundary
+      expect(config.isFileExcluded('/work/myprod.env')).toBe(false); // must NOT match
+    });
+
+    it('should not unprotect every *.env when ".env" is excluded', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockConfig.get.mockImplementation((key: string, defaultValue: any) => {
+        if (key === 'files.excludedFiles') {
+          return ['.env'];
+        }
+        return defaultValue;
+      });
+
+      expect(config.isFileExcluded('/app/.env')).toBe(true);
+      expect(config.isFileExcluded('/app/secret.env')).toBe(false); // must NOT match
     });
   });
 

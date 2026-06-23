@@ -69,6 +69,16 @@ describe('pattern-matcher', () => {
       expect(regex.test('')).toBe(true);
       expect(regex.test('anything')).toBe(true);
     });
+
+    it('should honor a wildcard in the middle of a pattern', () => {
+      const regex = patternToRegex('API*KEY');
+      expect(regex.test('APIKEY')).toBe(true); // '*' may match empty
+      expect(regex.test('API_KEY')).toBe(true);
+      expect(regex.test('API_SECRET_KEY')).toBe(true);
+      expect(regex.test('api_secret_key')).toBe(true); // case insensitive
+      expect(regex.test('MY_API_KEY')).toBe(false); // must start with API
+      expect(regex.test('API_KEY_SUFFIX')).toBe(false); // must end with KEY
+    });
   });
 
   describe('matchesAnyPattern', () => {
@@ -91,6 +101,12 @@ describe('pattern-matcher', () => {
       expect(matchesAnyPattern('api_key', patterns)).toBe(true);
       expect(matchesAnyPattern('password', patterns)).toBe(true);
       expect(matchesAnyPattern('My_Secret_Key', patterns)).toBe(true);
+    });
+
+    it('should match keys via a mid-string wildcard pattern', () => {
+      expect(matchesAnyPattern('APISECRETKEY', ['API*KEY'])).toBe(true);
+      expect(matchesAnyPattern('DATABASE_PRIMARY_URL', ['DATABASE*URL'])).toBe(true);
+      expect(matchesAnyPattern('UNRELATED', ['API*KEY'])).toBe(false);
     });
 
     it('should handle invalid patterns gracefully', () => {

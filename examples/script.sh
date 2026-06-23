@@ -41,3 +41,7 @@ else
     export DB_HOST=localhost
 fi
 
+# Long value split across lines
+export CONNECTION_STRING=host=localhost\;user=admin\;\
+password=very_secure_password\;db=prod
+

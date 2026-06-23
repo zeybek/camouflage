@@ -201,12 +201,11 @@ describe('text-generator', () => {
       );
 
       expect(result).toHaveLength(3);
-      // For 3+ character strings, first and last character should be preserved (when possible)
-      // But due to randomness, we'll just check length and that it contains the same characters
+      // Scramble is a permutation: same character multiset, same length.
       expect(result.split('').sort()).toEqual(originalText.split('').sort());
     });
 
-    it('should handle scramble style with long text and preserve first/last chars', () => {
+    it('should scramble long text as a permutation (without revealing first/last)', () => {
       const originalText = 'thisisaverylongpassword';
       const result = generateHiddenText(
         HiddenTextStyle.SCRAMBLE,
@@ -215,41 +214,35 @@ describe('text-generator', () => {
       );
 
       expect(result).toHaveLength(originalText.length);
-      expect(result[0]).toBe('t'); // First character preserved
-      expect(result[result.length - 1]).toBe('d'); // Last character preserved
+      // Same character multiset (it is just shuffled)...
+      expect(result.split('').sort()).toEqual(originalText.split('').sort());
+      // ...but the output must differ from the original.
       expect(result).not.toBe(originalText);
     });
 
-    it('should handle scramble when first character already in first position', () => {
-      // Test edge case where first character is already at the beginning after shuffle
-      const originalText = 'abcdef';
-
-      // Mock Math.random to control the shuffle behavior
-      const originalRandom = Math.random;
-      let callCount = 0;
-      Math.random = jest.fn(() => {
-        // Return deterministic values to control shuffle
-        return callCount++ % 2 === 0 ? 0.1 : 0.9;
-      });
-
-      const result = generateHiddenText(
-        HiddenTextStyle.SCRAMBLE,
-        originalText.length,
-        originalText
-      );
-
-      expect(result).toHaveLength(originalText.length);
-      expect(result[0]).toBe('a'); // First character preserved
-      expect(result[result.length - 1]).toBe('f'); // Last character preserved
-
-      // Restore original Math.random
-      Math.random = originalRandom;
+    it('should not deterministically pin the first/last characters', () => {
+      // Over many runs the first character must not always equal the original.
+      const originalText = 'abcdefghij';
+      let firstStayedCount = 0;
+      const runs = 60;
+      for (let i = 0; i < runs; i++) {
+        const result = generateHiddenText(
+          HiddenTextStyle.SCRAMBLE,
+          originalText.length,
+          originalText
+        );
+        expect(result.split('').sort()).toEqual(originalText.split('').sort());
+        if (result[0] === originalText[0]) {
+          firstStayedCount++;
+        }
+      }
+      // If the first char were pinned it would stay every single run.
+      expect(firstStayedCount).toBeLessThan(runs);
     });
 
-    it('should handle scramble when last character already in last position', () => {
+    it('should preserve length and character set for numeric-suffixed secrets', () => {
       const originalText = 'password123';
 
-      // Test multiple runs to ensure edge cases are covered
       for (let i = 0; i < 5; i++) {
         const result = generateHiddenText(
           HiddenTextStyle.SCRAMBLE,
@@ -258,23 +251,20 @@ describe('text-generator', () => {
         );
 
         expect(result).toHaveLength(originalText.length);
-        expect(result[0]).toBe('p'); // First character preserved
-        expect(result[result.length - 1]).toBe('3'); // Last character preserved
+        expect(result.split('').sort()).toEqual(originalText.split('').sort());
       }
     });
 
-    it('should handle scramble when character is not found during swap', () => {
-      // This tests the edge case where findIndex might return -1
-      const originalText = 'unique';
+    it('should keep multi-byte characters intact (no split surrogate pairs)', () => {
+      const originalText = 'a😀bc';
       const result = generateHiddenText(
         HiddenTextStyle.SCRAMBLE,
-        originalText.length,
+        Array.from(originalText).length,
         originalText
       );
 
-      expect(result).toHaveLength(originalText.length);
-      expect(result[0]).toBe('u'); // First character preserved
-      expect(result[result.length - 1]).toBe('e'); // Last character preserved
+      // The emoji must survive as one grapheme, not become replacement glyphs.
+      expect(Array.from(result).sort()).toEqual(Array.from(originalText).sort());
     });
   });
 });
