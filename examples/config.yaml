@@ -42,3 +42,24 @@ environments:
   production:
     debug: false
     apiUrl: https://api.example.com
+
+# TLS / certificates
+tls:
+  privateKey: |
+    -----BEGIN PRIVATE KEY-----
+    MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEA
+    fakekeymaterialfakekeymaterialfakekeymaterial==
+    -----END PRIVATE KEY-----
+  description: >
+    multi-line description
+    of the certificate
+
+# API keys as a list
+apiKeys:
+  - sk-list-token-aaa111
+  - sk-list-token-bbb222
+  - sk-list-token-ccc333
+
+endpoints:
+  internal: 'http://user:pass@host:8080'
+  health: 'value # with-hash'

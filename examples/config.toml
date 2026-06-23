@@ -43,3 +43,18 @@ apiUrl = "http://localhost:3000"
 [environments.production]
 debug = false
 apiUrl = "https://api.example.com"
+
+[tls]
+privateKey = """
+-----BEGIN PRIVATE KEY-----
+MIIBVQIBADANBgkqhkiG9w0BAQEF
+-----END PRIVATE KEY-----
+"""
+description = '''
+multi-line description
+of the certificate
+'''
+
+[billing]
+recoveryCodes = ["a1b2c3", "d4e5f6", "g7h8i9"]
+motd = "Welcome to \"production\""

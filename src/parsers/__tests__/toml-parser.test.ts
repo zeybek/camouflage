@@ -198,4 +198,77 @@ key2 = "value2"`;
       expect(result).toHaveLength(0);
     });
   });
+
+  describe('security regressions (multi-line / quoted-key must not leak)', () => {
+    const span = (content: string, v: { startIndex: number; endIndex: number }) =>
+      content.slice(v.startIndex, v.endIndex);
+
+    it('masks the interior of a multi-line basic string', () => {
+      const content = 'key = """\nSECRETLINE1\nSECRETLINE2\n"""';
+      const result = parser.parse(content);
+      expect(result).toHaveLength(1);
+      const masked = span(content, result[0]);
+      expect(masked).toContain('SECRETLINE1');
+      expect(masked).toContain('SECRETLINE2');
+    });
+
+    it('masks the interior of a multi-line literal string', () => {
+      const content = "key = '''\nLIT1\nLIT2\n'''";
+      const result = parser.parse(content);
+      const masked = span(content, result[0]);
+      expect(masked).toContain('LIT1');
+      expect(masked).toContain('LIT2');
+    });
+
+    it('masks a multi-line array', () => {
+      const content = 'hosts = [\n  "secret-a",\n  "secret-b"\n]';
+      const result = parser.parse(content);
+      const masked = span(content, result[0]);
+      expect(masked).toContain('secret-a');
+      expect(masked).toContain('secret-b');
+    });
+
+    it('places the mask on the value when the quoted key contains "="', () => {
+      const content = '"a=b" = "topsecret"';
+      const result = parser.parse(content);
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('a=b');
+      expect(span(content, result[0])).toBe('topsecret');
+    });
+
+    it('masks the whole basic string when it contains an escaped quote', () => {
+      const content = 'token = "abc\\"def"';
+      const result = parser.parse(content);
+      expect(span(content, result[0])).toBe('abc\\"def');
+    });
+
+    it('resumes parsing the next key after a multi-line value', () => {
+      const content = 'cert = """\nBODY1\nBODY2\n"""\nplain = "visible"';
+      const result = parser.parse(content);
+      const plain = result.find((v) => v.key === 'plain');
+      expect(plain).toBeDefined();
+      expect(span(content, plain!)).toBe('visible');
+    });
+
+    it('does not crash on an unterminated multi-line string', () => {
+      expect(() => parser.parse('key = """\nno closing here')).not.toThrow();
+      expect(() => parser.parse("key = '''\nno closing here")).not.toThrow();
+    });
+
+    it('skips comment lines when includeCommented is false', () => {
+      const result = new TomlParser({ includeCommented: false }).parse('# c\nkey = "v"');
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('key');
+    });
+
+    it('masks a single-line array', () => {
+      const content = 'hosts = ["a", "b"]';
+      const result = parser.parse(content);
+      expect(result).toHaveLength(1);
+    });
+
+    it('does not crash on an unterminated literal string', () => {
+      expect(() => parser.parse("key = 'abc")).not.toThrow();
+    });
+  });
 });

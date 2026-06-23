@@ -30,7 +30,9 @@ export class PropertiesParser extends BaseParser {
     const lines = content.split('\n');
     let currentIndex = 0;
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lineStart = currentIndex;
       const trimmedLine = line.trim();
 
       // Check for section headers [section]
@@ -49,7 +51,7 @@ export class PropertiesParser extends BaseParser {
           if (commentedMatch) {
             const key = this.buildKey(commentedMatch[1]);
             const value = commentedMatch[2].trim();
-            const valueStartIndex = currentIndex + line.indexOf(commentedMatch[2]);
+            const valueStartIndex = lineStart + line.indexOf(commentedMatch[2]);
             const valueEndIndex = valueStartIndex + commentedMatch[2].length;
 
             variables.push(
@@ -75,12 +77,38 @@ export class PropertiesParser extends BaseParser {
 
         // Find the actual value position in the original line
         const separatorIndex = line.search(/[=:]/);
-        const valueStartIndex = currentIndex + separatorIndex + 1;
         // Skip whitespace after separator
         const valueInLine = line.substring(separatorIndex + 1);
         const valueOffset = valueInLine.length - valueInLine.trimStart().length;
-        const actualValueStart = valueStartIndex + valueOffset;
-        const valueEndIndex = currentIndex + line.length;
+        const actualValueStart = lineStart + separatorIndex + 1 + valueOffset;
+        let valueEndIndex = lineStart + line.length;
+
+        // Backslash line continuation: extend the mask across the continued lines.
+        if (line.trimEnd().endsWith('\\')) {
+          let cursor = lineStart + line.length + 1;
+          while (i + 1 < lines.length) {
+            const contLine = lines[i + 1];
+            i++;
+            valueEndIndex = cursor + contLine.length;
+            cursor += contLine.length + 1;
+            if (!contLine.trimEnd().endsWith('\\')) {
+              break;
+            }
+          }
+          currentIndex = cursor;
+          variables.push(
+            this.createVariable(
+              key,
+              content.slice(actualValueStart, valueEndIndex),
+              actualValueStart,
+              valueEndIndex,
+              content,
+              false,
+              false
+            )
+          );
+          continue;
+        }
 
         variables.push(
           this.createVariable(key, value, actualValueStart, valueEndIndex, content, false, false)

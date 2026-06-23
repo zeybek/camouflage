@@ -116,6 +116,7 @@ export class ParserRegistry {
     const extensions = new Set<string>();
     for (const type of this.enabledParsers) {
       const parser = this.parsers.get(type);
+      /* istanbul ignore else -- enabled types are always registered parsers */
       if (parser) {
         for (const ext of parser.supportedExtensions) {
           extensions.add(ext);
@@ -190,36 +191,13 @@ export function parseFile(fileName: string, content: string): ParsedVariable[] {
 export function matchesUserPatterns(fileName: string, patterns: string[]): boolean {
   const baseName = path.basename(fileName).toLowerCase();
 
-  for (const pattern of patterns) {
-    const p = pattern.toLowerCase();
-
-    if (p.startsWith('*') && p.endsWith('*')) {
-      // *env* → contains "env"
-      if (baseName.includes(p.slice(1, -1))) {
-        return true;
-      }
-    } else if (p.startsWith('*.')) {
-      // *.sh → ends with ".sh"
-      if (baseName.endsWith(p.slice(1))) {
-        return true;
-      }
-    } else if (p.startsWith('.') && p.includes('*')) {
-      // .env* → starts with ".env"
-      if (baseName.startsWith(p.replace('*', ''))) {
-        return true;
-      }
-    } else if (p.endsWith('*')) {
-      // config* → starts with "config"
-      if (baseName.startsWith(p.slice(0, -1))) {
-        return true;
-      }
-    } else {
-      // exact match
-      if (baseName === p) {
-        return true;
-      }
-    }
-  }
-
-  return false;
+  // Each glob pattern becomes an anchored regex; '*' matches anywhere in the
+  // name (e.g. "config*.json", "*env*").
+  return patterns.some((pattern) => {
+    const regexBody = pattern
+      .toLowerCase()
+      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*/g, '.*');
+    return new RegExp('^' + regexBody + '$').test(baseName);
+  });
 }

@@ -30,6 +30,24 @@
       "region": "us-east-1"
     }
   },
+  "tls": {
+    "privateKey": "-----BEGIN PRIVATE KEY-----\nMIIBVQIBADANBgkqhkiG9w0\n-----END PRIVATE KEY-----",
+    "certPath": "C:\\Users\\admin\\certs\\server.key"
+  },
+  "billing": {
+    "pin": 4729,
+    "accountNumber": 4929123456780000,
+    "recoveryCodes": ["a1b2c3", "d4e5f6", "g7h8i9"]
+  },
+  "messages": {
+    "motd": "Welcome to \"production\"",
+    "displayName": "café-señor",
+    "logFormat": "time\tlevel\tmessage"
+  },
+  "shards": {
+    "10": "shard-ten-secret",
+    "2": "shard-two-secret"
+  },
   "publicConfig": {
     "appName": "My Application",
     "version": "1.0.0",

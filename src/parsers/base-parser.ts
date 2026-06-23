@@ -11,6 +11,9 @@ export abstract class BaseParser implements Parser {
 
   protected options: ParserOptions;
 
+  /** Newline offsets cached per content so getLineNumber stays O(log n) per call. */
+  private lineStartsCache: { content: string; starts: number[] } | null = null;
+
   constructor(options: Partial<ParserOptions> = {}) {
     this.options = { ...DEFAULT_PARSER_OPTIONS, ...options };
   }
@@ -35,11 +38,38 @@ export abstract class BaseParser implements Parser {
   }
 
   /**
-   * Helper to calculate line number from index
+   * Calculate the 0-based line number of a character index. Newline offsets are
+   * built once per content and binary-searched, so parsing a file with N values
+   * is O(n + N log n) instead of O(N * n).
    */
   protected getLineNumber(content: string, index: number): number {
-    const substring = content.substring(0, index);
-    return substring.split('\n').length - 1;
+    const starts = this.getLineStarts(content);
+    let lo = 0;
+    let hi = starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (starts[mid] <= index) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return lo;
+  }
+
+  /** Offsets at which each line starts, cached for the current content. */
+  private getLineStarts(content: string): number[] {
+    if (this.lineStartsCache && this.lineStartsCache.content === content) {
+      return this.lineStartsCache.starts;
+    }
+    const starts = [0];
+    for (let i = 0; i < content.length; i++) {
+      if (content[i] === '\n') {
+        starts.push(i + 1);
+      }
+    }
+    this.lineStartsCache = { content, starts };
+    return starts;
   }
 
   /**
@@ -51,8 +81,8 @@ export abstract class BaseParser implements Parser {
     startIndex: number,
     endIndex: number,
     content: string,
-    isNested: boolean = false,
-    isCommented: boolean = false
+    isNested: boolean,
+    isCommented: boolean
   ): ParsedVariable {
     return {
       key,

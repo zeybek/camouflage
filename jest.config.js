@@ -12,21 +12,18 @@ module.exports = {
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
     '!**/node_modules/**',
+    // extension.ts is the VS Code activation / command + UI wiring (registerCommand
+    // callbacks, showQuickPick/showInputBox flows). It is exercised manually / via the
+    // VS Code host rather than jest; the security-critical auto-hide path lives in
+    // core/camouflage.ts, which IS covered.
     '!src/extension.ts',
-    '!src/core/camouflage.ts',
   ],
   coverageThreshold: {
     global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80,
-    },
-    './src/utils/': {
-      branches: 70,
-      functions: 60,
-      lines: 80,
-      statements: 80,
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
     },
   },
   moduleNameMapper: {

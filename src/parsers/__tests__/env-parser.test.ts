@@ -152,4 +152,64 @@ describe('EnvParser', () => {
       expect(parser.canParse('notenv')).toBe(false);
     });
   });
+
+  describe('security regressions (multi-line values must not leak)', () => {
+    it('masks a multi-line quoted value (PEM key)', () => {
+      const content = 'PRIVATE_KEY="-----BEGIN-----\nMIIBSECRET\n-----END-----"\nOTHER=visible';
+      const result = parser.parse(content);
+
+      const pk = result.find((v) => v.key === 'PRIVATE_KEY');
+      expect(pk).toBeDefined();
+      const masked = content.slice(pk!.startIndex, pk!.endIndex);
+      expect(masked).toContain('MIIBSECRET');
+      expect(masked).toContain('-----END-----');
+
+      // The following key is still masked independently.
+      const other = result.find((v) => v.key === 'OTHER');
+      expect(other).toBeDefined();
+      expect(content.slice(other!.startIndex, other!.endIndex)).toBe('visible');
+    });
+
+    it('masks a backslash line continuation', () => {
+      const content = 'TOKEN=abc\\\ndef456\nNEXT=val';
+      const result = parser.parse(content);
+
+      const token = result.find((v) => v.key === 'TOKEN');
+      expect(token).toBeDefined();
+      const masked = content.slice(token!.startIndex, token!.endIndex);
+      expect(masked).toContain('abc');
+      expect(masked).toContain('def456');
+    });
+
+    it('masks a multi-line backslash continuation', () => {
+      const content = 'K=a\\\nb\\\nc\nNEXT=v';
+      const result = parser.parse(content);
+
+      const k = result.find((v) => v.key === 'K');
+      expect(k).toBeDefined();
+      const masked = content.slice(k!.startIndex, k!.endIndex);
+      expect(masked).toContain('a');
+      expect(masked).toContain('c');
+    });
+
+    it('does not crash on an unterminated opening quote', () => {
+      const content = 'K="abc';
+      const result = parser.parse(content);
+      expect(result.find((v) => v.key === 'K')).toBeDefined();
+    });
+
+    it('masks a continuation that ends at EOF', () => {
+      const content = 'K=a\\\nb';
+      const result = parser.parse(content);
+      const k = result.find((v) => v.key === 'K');
+      expect(k).toBeDefined();
+      expect(content.slice(k!.startIndex, k!.endIndex)).toContain('b');
+    });
+  });
+
+  describe('canParse edge', () => {
+    it('handles a path ending in a slash', () => {
+      expect(parser.canParse('some/path/')).toBe(false);
+    });
+  });
 });

@@ -213,4 +213,112 @@ key2: value2`;
       expect(result.some((v) => v.key === 'database.replica.host')).toBe(true);
     });
   });
+
+  describe('security regressions (multi-line / lists must not leak)', () => {
+    const spans = (content: string) =>
+      parser.parse(content).map((v) => content.slice(v.startIndex, v.endIndex));
+
+    it('masks the full body of a literal block scalar (|)', () => {
+      const content = 'config:\n  key: |\n    -----BEGIN-----\n    SECRET_BODY\n    -----END-----';
+      const masked = spans(content).join('\n');
+      expect(masked).toContain('SECRET_BODY');
+      expect(masked).toContain('-----BEGIN-----');
+    });
+
+    it('masks the full body of a folded block scalar (>)', () => {
+      const content = 'note: >\n  secret_a\n  secret_b';
+      const masked = spans(content).join('\n');
+      expect(masked).toContain('secret_a');
+      expect(masked).toContain('secret_b');
+    });
+
+    it('masks scalar list items', () => {
+      const content = 'tokens:\n  - sk-aaa\n  - sk-bbb';
+      const masked = spans(content);
+      expect(masked).toContain('sk-aaa');
+      expect(masked).toContain('sk-bbb');
+    });
+
+    it('masks values of mapping list items', () => {
+      const content = 'users:\n  - name: admin\n    password: topsecret';
+      const masked = spans(content);
+      expect(masked).toContain('admin');
+      expect(masked).toContain('topsecret');
+    });
+
+    it('stops a block scalar at a dedented sibling key', () => {
+      const content = 'cert: |\n  LINE_A\n  LINE_B\n\nother: keepme';
+      const result = parser.parse(content);
+      const other = result.find((v) => v.key === 'other');
+      expect(other).toBeDefined();
+      expect(content.slice(other!.startIndex, other!.endIndex)).toBe('keepme');
+    });
+
+    it('keeps every masked span aligned to its source text', () => {
+      const content = 'a:\n  b: |\n    x1\n    x2\n  c: plain';
+      for (const v of parser.parse(content)) {
+        expect(content.slice(v.startIndex, v.endIndex)).toBe(v.value);
+      }
+    });
+  });
+
+  describe('edge cases', () => {
+    it('handles an empty block scalar without crashing', () => {
+      expect(() => parser.parse('key: |')).not.toThrow();
+      const result = parser.parse('key: |\nother: v');
+      expect(result.some((v) => v.key === 'other')).toBe(true);
+    });
+
+    it('strips quotes from a quoted list item', () => {
+      const content = 'items:\n  - "quoted_secret"';
+      const spans = parser.parse(content).map((v) => content.slice(v.startIndex, v.endIndex));
+      expect(spans).toContain('quoted_secret');
+    });
+
+    it('ignores an empty quoted or valueless list item', () => {
+      expect(() => parser.parse('items:\n  - ""')).not.toThrow();
+      expect(() => parser.parse('items:\n  - ')).not.toThrow();
+    });
+
+    it('ignores a dash-prefixed non-list line', () => {
+      const result = parser.parse('a: 1\n-notalist');
+      expect(result.some((v) => v.key === 'a')).toBe(true);
+    });
+
+    it('skips comment lines when includeCommented is false', () => {
+      const result = new YamlParser({ includeCommented: false }).parse('# c\nkey: value');
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('key');
+    });
+
+    it('handles a bare dash with no value', () => {
+      expect(() => parser.parse('items:\n  -')).not.toThrow();
+    });
+
+    it('masks a root-level scalar list item', () => {
+      const content = '- rootsecret';
+      const spans = parser.parse(content).map((v) => content.slice(v.startIndex, v.endIndex));
+      expect(spans).toContain('rootsecret');
+    });
+
+    it('masks a root-level mapping list item', () => {
+      const content = '- name: rootadmin';
+      const spans = parser.parse(content).map((v) => content.slice(v.startIndex, v.endIndex));
+      expect(spans).toContain('rootadmin');
+    });
+
+    it('handles a mapping list item with an empty quoted value', () => {
+      expect(() => parser.parse('items:\n  - name: ""')).not.toThrow();
+    });
+
+    it('handles a mapping list item with a whitespace-only value', () => {
+      expect(() => parser.parse('items:\n  - name:   ')).not.toThrow();
+    });
+
+    it('strips single quotes from a list item', () => {
+      const content = "items:\n  - 'singlesecret'";
+      const spans = parser.parse(content).map((v) => content.slice(v.startIndex, v.endIndex));
+      expect(spans).toContain('singlesecret');
+    });
+  });
 });

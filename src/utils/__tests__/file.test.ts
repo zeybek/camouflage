@@ -1,4 +1,5 @@
-import { describe, expect, it } from '@jest/globals';
+import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import * as vscode from 'vscode';
 import {
   findAllEnvVariables,
   findCommentedEnvVariables,
@@ -306,6 +307,28 @@ export ANOTHER_KEY=value
       // Default patterns include *.json, *.yaml, etc.
       expect(isSupportedFile('myconfig.json')).toBe(true);
       expect(isSupportedFile('settings.yaml')).toBe(true);
+    });
+  });
+
+  describe('config-dependent branches', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('returns false from isSupportedFile for an excluded file', () => {
+      jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
+        get: (key: string, def: unknown) => (key === 'files.excludedFiles' ? ['config.json'] : def),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+      expect(isSupportedFile('/some/path/config.json')).toBe(false);
+    });
+
+    it('isEnvFile matches a non-parser file via user patterns', () => {
+      jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
+        get: (key: string, def: unknown) => (key === 'files.patterns' ? ['*.custom'] : def),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+      expect(isEnvFile('data.custom')).toBe(true);
     });
   });
 });

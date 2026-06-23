@@ -6,6 +6,11 @@ import {
   parseFile,
   configureParserRegistry,
   matchesUserPatterns,
+  EnvParser,
+  JsonParser,
+  YamlParser,
+  PropertiesParser,
+  TomlParser,
 } from '../index';
 
 describe('ParserRegistry', () => {
@@ -282,6 +287,40 @@ describe('Module exports', () => {
     it('should handle full paths', () => {
       expect(matchesUserPatterns('/path/to/config.json', ['*.json'])).toBe(true);
       expect(matchesUserPatterns('/path/to/.env.local', ['.env*'])).toBe(true);
+    });
+  });
+
+  describe('full surface', () => {
+    it('exercises every registry method and module helper', () => {
+      const reg = new ParserRegistry(['json', 'yaml']);
+      expect(reg.getEnabledParsers().length).toBe(2);
+
+      const jsonParser = reg.getParser('json');
+      expect(jsonParser).toBeDefined();
+      reg.registerParser('json', jsonParser!);
+      reg.setEnabledParsers(['json']);
+      expect(reg.canParseFile('a.json')).toBe(true);
+      expect(reg.findParserForFile('a.json')).toBeDefined();
+      expect(reg.getSupportedExtensions()).toContain('.json');
+      reg.updateParserOptions('json', { maxNestedDepth: 2 });
+      expect(reg.parseFile('a.json', '{"k":"v"}').length).toBe(1);
+
+      expect(getParserRegistry()).toBeDefined();
+      expect(isSupportedFile('a.json')).toBe(true);
+      expect(parseFile('a.json', '{"k":"v"}').length).toBe(1);
+      configureParserRegistry(['json', 'yaml'], {
+        json: { maxNestedDepth: 3 },
+        yaml: { maxNestedDepth: 4 },
+      });
+      resetParserRegistry();
+    });
+
+    it('re-exports the parser classes', () => {
+      expect(new EnvParser()).toBeInstanceOf(EnvParser);
+      expect(new JsonParser()).toBeInstanceOf(JsonParser);
+      expect(new YamlParser()).toBeInstanceOf(YamlParser);
+      expect(new PropertiesParser()).toBeInstanceOf(PropertiesParser);
+      expect(new TomlParser()).toBeInstanceOf(TomlParser);
     });
   });
 });

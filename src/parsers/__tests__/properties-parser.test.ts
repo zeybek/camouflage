@@ -173,5 +173,33 @@ port: 5432`;
 
       expect(result).toHaveLength(1);
     });
+
+    it('masks a backslash line continuation', () => {
+      const content = 'cert=line1\\\nline2\nplain=visible';
+      const masked = parser.parse(content).map((v) => content.slice(v.startIndex, v.endIndex));
+      expect(masked.some((m) => m.includes('line1') && m.includes('line2'))).toBe(true);
+      expect(masked).toContain('visible');
+    });
+
+    it('masks a multi-line backslash continuation', () => {
+      const content = 'k=a\\\nb\\\nc';
+      const masked = parser.parse(content).map((v) => content.slice(v.startIndex, v.endIndex));
+      expect(masked[0]).toContain('a');
+      expect(masked[0]).toContain('c');
+    });
+
+    it('skips // comment lines', () => {
+      const content = '// a comment\nkey=value';
+      const result = parser.parse(content);
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('key');
+    });
+
+    it('does not parse commented entries when includeCommented is false', () => {
+      const parserNoComments = new PropertiesParser({ includeCommented: false });
+      const result = parserNoComments.parse('# api.key=secret\ndb.host=localhost');
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('db.host');
+    });
   });
 });

@@ -12,13 +12,14 @@ import { getFilePatterns, isFileExcluded } from './config';
  * Matches lines like: KEY=value or export KEY=value
  * Note: Removed global flag to prevent state issues
  */
-const ENV_VAR_BASE_REGEX = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/m;
+const ENV_VAR_BASE_REGEX = /^[ \t]*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(.*)$/m;
 
 /**
  * Regular expression to match commented environment variable declarations
  * Matches lines like: # KEY=value or # export KEY=value
  */
-const COMMENTED_ENV_VAR_REGEX = /^\s*#\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/gm;
+const COMMENTED_ENV_VAR_REGEX =
+  /^[ \t]*#[ \t]*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(.*)$/gm;
 
 /**
  * Find all environment variable matches in the given text
@@ -27,7 +28,7 @@ const COMMENTED_ENV_VAR_REGEX = /^\s*#\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\
  */
 export function findEnvVariables(text: string): RegExpMatchArray[] {
   // Use matchAll with global flag for safe iteration
-  const globalRegex = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/gm;
+  const globalRegex = /^[ \t]*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(.*)$/gm;
   return Array.from(text.matchAll(globalRegex));
 }
 

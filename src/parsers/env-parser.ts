@@ -13,14 +13,15 @@ export class EnvParser extends BaseParser {
    * Regular expression to match environment variable declarations
    * Matches: KEY=value, export KEY=value (with optional leading whitespace for indented code)
    */
-  private readonly ENV_VAR_REGEX = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/gm;
+  private readonly ENV_VAR_REGEX =
+    /^[ \t]*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(.*)$/gm;
 
   /**
    * Regular expression to match commented environment variable declarations
    * Matches: # KEY=value, # export KEY=value
    */
   private readonly COMMENTED_ENV_VAR_REGEX =
-    /^\s*#\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/gm;
+    /^[ \t]*#[ \t]*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(.*)$/gm;
 
   parse(content: string): ParsedVariable[] {
     const variables: ParsedVariable[] = [];
@@ -51,7 +52,7 @@ export class EnvParser extends BaseParser {
     let match: RegExpExecArray | null = regex.exec(content);
     while (match !== null) {
       const key = match[1];
-      const value = match[2];
+      let value = match[2];
 
       // Skip empty values
       if (value.trim()) {
@@ -60,7 +61,38 @@ export class EnvParser extends BaseParser {
         const matchStart = match.index;
         const equalsIndex = fullMatch.indexOf('=');
         const valueStartIndex = matchStart + equalsIndex + 1;
-        const valueEndIndex = matchStart + fullMatch.length;
+        let valueEndIndex = matchStart + fullMatch.length;
+
+        const firstChar = value[0];
+        if ((firstChar === '"' || firstChar === "'") && value.indexOf(firstChar, 1) === -1) {
+          // Opening quote with no closing quote on this line: a multi-line value.
+          // Extend the mask to the closing quote.
+          const closeIdx = content.indexOf(firstChar, valueStartIndex + 1);
+          if (closeIdx >= valueEndIndex) {
+            valueEndIndex = closeIdx + 1;
+            value = content.slice(valueStartIndex, valueEndIndex);
+            regex.lastIndex = valueEndIndex;
+          }
+        } else if (value.endsWith('\\')) {
+          // Shell-style backslash line continuation: absorb the continued lines.
+          let lineEnd = content.indexOf('\n', valueEndIndex);
+          while (lineEnd !== -1) {
+            const nextNl = content.indexOf('\n', lineEnd + 1);
+            const sliceEnd = nextNl === -1 ? content.length : nextNl;
+            valueEndIndex = sliceEnd;
+            if (
+              !content
+                .slice(lineEnd + 1, sliceEnd)
+                .trimEnd()
+                .endsWith('\\')
+            ) {
+              break;
+            }
+            lineEnd = nextNl;
+          }
+          value = content.slice(valueStartIndex, valueEndIndex);
+          regex.lastIndex = valueEndIndex;
+        }
 
         variables.push(
           this.createVariable(
